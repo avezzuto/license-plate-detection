@@ -21,19 +21,51 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     """
 
     # TODO: Read frames from the video (saved at `file_path`) by making use of `sample_frequency`
-    frame = None
+    cap = cv2.VideoCapture(file_path)
 
-    # TODO: Implement actual algorithms for Localizing Plates
-    Localization.plate_detection(frame)
+    frames_to_skip = int(82 * cap.get(cv2.CAP_PROP_FPS))
 
-    # TODO: Implement actual algorithms for Recognizing Characters
+    if (cap.isOpened() == False):
+        print("Error opening video stream or file")
 
-    output = open(save_path, "w")
-    output.write("License plate,Frame no.,Timestamp(seconds)\n")
+    frame_counter = 0
+    while (cap.isOpened()):
+        # Capture frame-by-frame
+        ret, frame = cap.read()
+        if ret == True:
+            # dummy arguments for sample frequency and save_path should be changed
+            if frame_counter < frames_to_skip:
+                # Skip frames until reaching the desired starting point
+                print("Here")
+                frame_counter += 1
+            else:
+                detections = Localization.plate_detection(frame)
+            # Display the resulting frame
+            """for detection in detections:
+                cv2.imshow('Frame', detection)"""
 
-    # TODO: REMOVE THESE (below) and write the actual values in `output`
-    output.write("XS-NB-23,34,1.822\n")
-    # output.write("YOUR,STUFF,HERE\n")
-    # TODO: REMOVE THESE (above) and write the actual values in `output`
+
+            # TODO: Implement actual algorithms for Recognizing Characters
+
+            output = open(save_path, "w")
+            output.write("License plate,Frame no.,Timestamp(seconds)\n")
+
+            # TODO: REMOVE THESE (below) and write the actual values in `output`
+            output.write("XS-NB-23,34,1.822\n")
+            # TODO: REMOVE THESE (above) and write the actual values in `output`
+
+            # Press Q on keyboard to  exit
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break
+
+        # Break the loop
+        else:
+            break
+
+    # When everything done, release the video capture object
+    cap.release()
+
+    # Closes all the frames
+    cv2.destroyAllWindows()
 
     pass
