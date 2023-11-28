@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import Rotation
 
 
 def plate_detection(image):
@@ -76,6 +77,7 @@ def plate_detection(image):
     plate = image[miny:maxy + 1, minx:maxx + 1, :]
 
     plate_images = [plate, plate, plate]
+    plate_images = Rotation.rotate(plate_images)
 
     cv2.imshow('Filtered frame', eroded)
     cv2.imshow('First frame', image)
@@ -85,4 +87,5 @@ def plate_detection(image):
 
 
     return plate_images
+
 
