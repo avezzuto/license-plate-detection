@@ -36,7 +36,6 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
             # dummy arguments for sample frequency and save_path should be changed
             if frame_counter < frames_to_skip:
                 # Skip frames until reaching the desired starting point
-                print("Here")
                 frame_counter += 1
             else:
                 detections = Localization.plate_detection(frame)
