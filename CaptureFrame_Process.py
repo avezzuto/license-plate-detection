@@ -23,7 +23,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     # TODO: Read frames from the video (saved at `file_path`) by making use of `sample_frequency`
     cap = cv2.VideoCapture(file_path)
 
-    frames_to_skip = int( 82* cap.get(cv2.CAP_PROP_FPS))
+    frames_to_skip = int(0 * cap.get(cv2.CAP_PROP_FPS))
 
     if (cap.isOpened() == False):
         print("Error opening video stream or file")
