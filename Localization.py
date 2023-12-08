@@ -68,6 +68,8 @@ def plate_detection(image):
     filtered = hsv_image.copy()
     filtered[mask == 0] = [0, 0, 0]
 
+    showImages = False
+
     structuring_element = np.array([[1, 1, 1, 1, 1],
                                             [1, 1, 1, 1, 1],
                                             [1, 1, 1, 1, 1],
@@ -118,10 +120,11 @@ def plate_detection(image):
 
     plate_images = Rotation.rotate(plates)
 
-    cv2.imshow('Original frame', image)
-    cv2.imshow('Masked frame', eroded)
-    for idx, plate_img in enumerate(plate_images):
-        cv2.imshow(f'Plate {idx}', plate_img)
-    cv2.waitKey(0)
+    if showImages:
+        cv2.imshow('Original frame', image)
+        cv2.imshow('Masked frame', eroded)
+        for idx, plate_img in enumerate(plate_images):
+            cv2.imshow(f'Plate {idx}', plate_img)
+        cv2.waitKey(0)
 
     return plate_images
