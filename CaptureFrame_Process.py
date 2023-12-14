@@ -29,7 +29,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     if (cap.isOpened() == False):
         print("Error opening video stream or file")
 
-    count = int(0 * cap.get(cv2.CAP_PROP_FPS))
+    count = int(140 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, count)
 
     while (cap.isOpened()):
