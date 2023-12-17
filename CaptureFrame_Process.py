@@ -29,14 +29,17 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     if (cap.isOpened() == False):
         print("Error opening video stream or file")
 
-    count = int(140 * cap.get(cv2.CAP_PROP_FPS))
+    count = int(0 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, count)
+    old_x = 0
+    old_histogram = None
 
     while (cap.isOpened()):
         # Capture frame-by-frame
         ret, frame = cap.read()
         if ret == True:
-            detections = Localization.plate_detection(frame)
+            detections, old_x, old_histogram = Localization.plate_detection(frame, old_x, old_histogram)
+
             # Display the resulting frame
             """for detection in detections:
                 cv2.imshow('Frame', detection)"""
@@ -45,7 +48,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
             output.write("XS-NB-23,34,1.822\n")
             # TODO: REMOVE THESE (below) and write the actual values in `output`
 
-            count += 5
+            count += 1
             cap.set(cv2.CAP_PROP_POS_FRAMES, count)
 
             # Press Q on keyboard to  exit
