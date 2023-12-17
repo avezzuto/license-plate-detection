@@ -175,8 +175,6 @@ def plate_detection(image, old_x, old_histogram):
             filtered = plate.copy()
             filtered[mask == 0] = [0, 0, 0]
 
-            cv2.imshow(f'Further masked plate {idx}', filtered)
-
             cropped_plate, current_x = crop_plate(filtered, plate)
 
             final_cropped_plates.append(cropped_plate)
