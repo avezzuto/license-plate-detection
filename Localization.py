@@ -99,6 +99,8 @@ def plate_detection(image, old_x, old_histogram):
         1. You may need to define other functions, such as crop and adjust function
         2. You may need to define two ways for localizing plates(yellow or other colors)
     """
+    showImages = False
+
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     histogram_check = False
@@ -115,8 +117,6 @@ def plate_detection(image, old_x, old_histogram):
     mask = cv2.inRange(blur, colorMin, colorMax)
     filtered = blur.copy()
     filtered[mask == 0] = [0, 0, 0]
-
-    showImages = True
 
     structuring_element = np.array([[1, 1, 1, 1, 1],
                                     [1, 1, 1, 1, 1],
