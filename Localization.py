@@ -201,7 +201,6 @@ def plate_detection(image, old_x, old_histogram):
     else:
         print("Different scene")
 
-
     if showImages:
         cv2.imshow('Original frame', image)
         cv2.imshow('Masked frame', eroded)

@@ -4,6 +4,8 @@ from scipy import ndimage
 
 
 def rotate(images):
+    showImages = False
+
     rotated_plates = []
 
     for idx, image in enumerate(images):
@@ -15,8 +17,9 @@ def rotate(images):
             # Perform edge detection using Canny
             edges = cv2.Canny(gray_image, 50, 150)
 
-            # Display edges for visualization
-            cv2.imshow(f'Edges of plate {idx}', edges)
+            if showImages:
+                # Display edges for visualization
+                cv2.imshow(f'Edges of plate {idx}', edges)
 
             # Detect lines using Hough Transform
             lines = cv2.HoughLines(edges, 1, np.pi / 180, 100)
