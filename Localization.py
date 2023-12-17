@@ -3,90 +3,74 @@ import numpy as np
 import Rotation
 
 
-def split_license_plates_vertical(mask, image):
-    height, width = mask.shape[:2]
-    split_threshold = 50  # Number of black pixels to consider a split
+def split_license_plates(mask, image, direction):
+    if direction == 'vertical':
+        axis = 1
+        threshold = 50
+        size = mask.shape[1]
+    else:
+        axis = 0
+        threshold = 20
+        size = mask.shape[0]
 
-    splits = []
-    previous_color = None
     black_count = 0
+    previous_color = None
+    splits = []
 
-    for x in range(width):
-        column = mask[:, x]
-        unique_colors = np.unique(column)
-
-        if len(unique_colors) == 1 and unique_colors[0] == 0:  # Assuming black background
+    for i in range(size):
+        if axis == 1:
+            section = mask[:, i]
+        else:
+            section = mask[i]
+        unique_colors = np.unique(section)
+        if len(unique_colors) == 1 and unique_colors[0] == 0:
             black_count += 1
-            if black_count >= split_threshold and previous_color is not None:
-                splits.append(x)
+            if black_count >= threshold and previous_color is not None:
+                splits.append(i)
                 black_count = 0
                 previous_color = None
-        else:
-            black_count = 0
-            previous_color = unique_colors[0]
+            continue
 
-    # Split the image based on identified positions
+        black_count = 0
+        previous_color = unique_colors[0]
+
     mask_images = []
     plate_images = []
+
     if len(splits) > 0:
-        splits = [0] + splits + [width]
+        splits = [0] + splits + [size]
         for i in range(len(splits) - 1):
-            start_x = splits[i]
-            end_x = splits[i + 1]
-            sub_mask = mask[:, start_x:end_x]  # Extract sub-mask from the original mask
-            sub_plate = image[:, start_x:end_x, :]  # Extract sub-plate from the original image
+            start = splits[i]
+            end = splits[i + 1]
+            if axis == 0:
+                sub_mask = mask[start:end, :]
+                sub_plate = image[start:end, :, :]
+            else:
+                sub_mask = mask[:, start:end]
+                sub_plate = image[:, start:end, :]
+
             unique_colors = np.unique(sub_mask)
             if not (len(unique_colors) == 1 and unique_colors[0] == 0):
-                # Append sub-mask and sub-plate as images to their respective lists
                 mask_images.append(sub_mask)
                 plate_images.append(sub_plate)
     else:
         mask_images.append(mask)
         plate_images.append(image)
+
     return mask_images, plate_images
 
 
-def split_license_plates_horizontal(mask, image):
-    height, width = mask.shape[:2]
-    split_threshold = 20  # Number of black pixels to consider a split
+def crop_plate(mask, image):
+    min_x = 0
+    non_black_indices = np.argwhere(np.any(mask != mask[0, 0], axis=-1))
+    if non_black_indices.size > 0:
+        min_y, min_x = non_black_indices.min(axis=0)
+        max_y, max_x = non_black_indices.max(axis=0)
 
-    splits = []
-    previous_color = None
-    black_count = 0
-
-    for y in range(height):
-        row = mask[y]
-        unique_colors = np.unique(row)
-
-        if len(unique_colors) == 1 and unique_colors[0] == 0:  # Assuming black background
-            black_count += 1
-            if black_count >= split_threshold and previous_color is not None:
-                splits.append(y)
-                black_count = 0
-                previous_color = None
-        else:
-            black_count = 0
-            previous_color = unique_colors[0]
-
-    # Split the image based on identified positions
-    mask_images = []
-    plate_images = []
-    if len(splits) > 0:
-        splits = [0] + splits + [height]
-        for i in range(len(splits) - 1):
-            start_y = splits[i]
-            end_y = splits[i + 1]
-            sub_mask = mask[start_y:end_y, :]  # Extract sub-mask from the original mask
-            sub_plate = image[start_y:end_y, :, :]  # Extract sub-plate from the original image
-            unique_colors = np.unique(sub_mask)
-            if not (len(unique_colors) == 1 and unique_colors[0] == 0):
-                # Append sub-mask and sub-plate as images to their respective lists
-                mask_images.append(sub_mask)
-                plate_images.append(sub_plate)
-    else:
-        mask_images.append(mask)
-        plate_images.append(image)
-    return mask_images, plate_images
+        # Crop the plate
+        plate = image[min_y:max_y + 1, min_x:max_x + 1, :]
+        return plate, min_x
+    return image, min_x
 
 
 def check_ratios(plates):
@@ -94,13 +78,12 @@ def check_ratios(plates):
     for plate in plates:
         if np.shape(plate)[0] > 0:
             ratio = np.shape(plate)[1]/np.shape(plate)[0]
-            print(ratio)
-            if 1.5 < ratio < 4.5:
+            if 1.8 < ratio < 4.2:
                 checked_plates.append(plate)
     return checked_plates
 
 
-def plate_detection(image):
+def plate_detection(image, old_x, old_histogram):
     """
     In this file, you need to define plate_detection function.
     To do:
@@ -118,6 +101,9 @@ def plate_detection(image):
     """
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
+    histogram_check = False
+    x_coordinate_check = False
+
     kernel_size = 5
     blur = cv2.GaussianBlur(hsv_image, (kernel_size, kernel_size), kernel_size / 6)
 
@@ -127,10 +113,10 @@ def plate_detection(image):
 
     # Segment only the selected color from the image and leave out all the rest (apply a mask)
     mask = cv2.inRange(blur, colorMin, colorMax)
-    filtered = hsv_image.copy()
+    filtered = blur.copy()
     filtered[mask == 0] = [0, 0, 0]
 
-    showImages = False
+    showImages = True
 
     structuring_element = np.array([[1, 1, 1, 1, 1],
                                     [1, 1, 1, 1, 1],
@@ -156,48 +142,74 @@ def plate_detection(image):
     dilatedClosing = cv2.dilate(dilated, structuring_element_closing)
     eroded = cv2.erode(dilatedClosing, structuring_element)
 
-    vertical_split_mask, vertical_split_image = split_license_plates_vertical(eroded, image)
+    vertical_split_mask, vertical_split_image = split_license_plates(eroded, image, 'vertical')
 
     split_mask, split_image = [], []
-    for i, singleMask in enumerate(vertical_split_mask):
-        msk, img = split_license_plates_horizontal(vertical_split_mask[i], vertical_split_image[i])
+    for i in range(len(vertical_split_mask)):
+        msk, img = split_license_plates(vertical_split_mask[i], vertical_split_image[i], 'horizontal')
         for j in range(len(msk)):
             split_mask.append(msk[j])
             split_image.append(img[j])
 
-    plates = []
-    for i, singleMask in enumerate(split_mask):
-        minx = 1000000
-        miny = 1000000
-        maxx = -1
-        maxy = -1
-        purple = singleMask[0][0]
-        for y in range(singleMask.shape[0]):
-            for x in range(singleMask.shape[1]):
-                if (singleMask[y][x] != purple).all():
-                    if x < minx:
-                        minx = x
-                    if y < miny:
-                        miny = y
-                    if x > maxx:
-                        maxx = x
-                    if y > maxy:
-                        maxy = y
-        # Crop the plate
-        plate = split_image[i][miny:maxy + 1, minx:maxx + 1, :]
-        plates.append(plate)
+    cropped_plates = []
+    for singleMask, split_img in zip(split_mask, split_image):
+        cropped, _ = crop_plate(singleMask, split_img)
+        cropped_plates.append(cropped)
 
-    rotated_plate_images = Rotation.rotate(plates)
+    rotated_plates = Rotation.rotate(cropped_plates)
 
-    plate_images = check_ratios(rotated_plate_images)
+    plate_images = check_ratios(rotated_plates)
+
+    final_cropped_plates = []
+    current_x = 0
+    for idx, plate in enumerate(plate_images):
+        if np.shape(plate)[0] > 0 and np.shape(plate)[1] > 0:
+            hsv_plate = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
+
+            # Define color range
+            colorMin = np.array([10, 50, 50])  # Lower HSV values for yellow
+            colorMax = np.array([30, 255, 255])  # Higher HSV values for yellow
+
+            # Segment only the selected color from the image and leave out all the rest (apply a mask)
+            mask = cv2.inRange(hsv_plate, colorMin, colorMax)
+            filtered = plate.copy()
+            filtered[mask == 0] = [0, 0, 0]
+
+            cv2.imshow(f'Further masked plate {idx}', filtered)
+
+            cropped_plate, current_x = crop_plate(filtered, plate)
+
+            final_cropped_plates.append(cropped_plate)
+
+    if abs(current_x - old_x) < 20:
+        print(abs(current_x - old_x))
+        x_coordinate_check = True
+
+    grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    current_histogram, _ = np.histogram(grey_image.flatten(), bins=256, range=[0, 256])
+    if old_histogram is not None:
+        current_histogram = current_histogram / np.sum(current_histogram)
+        old_histogram = old_histogram / np.sum(old_histogram)
+
+        distance = np.linalg.norm(current_histogram - old_histogram)
+        print(distance)
+        if distance < 0.2:
+            histogram_check = True
+    else:
+        histogram_check = True
+
+    if x_coordinate_check or histogram_check:
+        print("Same scene")
+    else:
+        print("Different scene")
+
 
     if showImages:
         cv2.imshow('Original frame', image)
-        cv2.imshow('Blurred frame', cv2.cvtColor(blur, cv2.COLOR_HSV2BGR))
         cv2.imshow('Masked frame', eroded)
-        for idx, plate_img in enumerate(plate_images):
+        for idx, plate_img in enumerate(final_cropped_plates):
             if np.shape(plate_img)[0] > 0 and np.shape(plate_img)[1] > 0:
                 cv2.imshow(f'Plate {idx}', plate_img)
         cv2.waitKey(0)
 
-    return plate_images
+    return cropped_plates, current_x, current_histogram
