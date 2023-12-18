@@ -24,7 +24,7 @@ while(cap.isOpened()):
   ret, frame = cap.read()
   if ret == True:
     #dummy arguments for sample frequency and save_path should be changed
-    detections = plate_detection(frame)
+    detections = plate_detection(frame,,
     # Display the resulting frame
     cv2.imshow('Frame',detections)
 
