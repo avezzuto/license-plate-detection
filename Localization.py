@@ -104,9 +104,6 @@ def plate_detection(image):
 
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    histogram_check = False
-    coordinate_check = False
-
     kernel_size = 5
     blur = cv2.GaussianBlur(hsv_image, (kernel_size, kernel_size), kernel_size / 6)
 
@@ -181,10 +178,9 @@ def plate_detection(image):
 
     if showImages:
         cv2.imshow('Original frame', image)
-        cv2.imshow('Masked frame', eroded)
         for idx, plate_img in enumerate(final_cropped_plates):
             if np.shape(plate_img)[0] > 0 and np.shape(plate_img)[1] > 0:
-                cv2.imshow(f'Plate {idx}', plate_img)
+                cv2.imshow(f'Cropped plate {idx}', plate_img)
         cv2.waitKey(0)
 
     return cropped_plates
