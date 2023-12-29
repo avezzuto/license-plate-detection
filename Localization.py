@@ -62,6 +62,7 @@ def split_license_plates(mask, image, direction):
 
 def crop_plate(mask, image):
     min_x = 0
+    min_y = 0
     non_black_indices = np.argwhere(np.any(mask != mask[0, 0], axis=-1))
     if non_black_indices.size > 0:
         min_y, min_x = non_black_indices.min(axis=0)
@@ -69,8 +70,8 @@ def crop_plate(mask, image):
 
         # Crop the plate
         plate = image[min_y:max_y + 1, min_x:max_x + 1, :]
-        return plate, min_x
-    return image, min_x
+        return plate, min_x + min_y
+    return image, min_x + min_y
 
 
 def check_ratios(plates):
@@ -83,7 +84,7 @@ def check_ratios(plates):
     return checked_plates
 
 
-def plate_detection(image, old_x, old_histogram):
+def plate_detection(image, old_pos, old_histogram):
     """
     In this file, you need to define plate_detection function.
     To do:
@@ -104,7 +105,7 @@ def plate_detection(image, old_x, old_histogram):
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     histogram_check = False
-    x_coordinate_check = False
+    coordinate_check = False
 
     kernel_size = 5
     blur = cv2.GaussianBlur(hsv_image, (kernel_size, kernel_size), kernel_size / 6)
@@ -161,7 +162,7 @@ def plate_detection(image, old_x, old_histogram):
     plate_images = check_ratios(rotated_plates)
 
     final_cropped_plates = []
-    current_x = 0
+    current_pos = 0
     for idx, plate in enumerate(plate_images):
         if np.shape(plate)[0] > 0 and np.shape(plate)[1] > 0:
             hsv_plate = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
@@ -175,13 +176,13 @@ def plate_detection(image, old_x, old_histogram):
             filtered = plate.copy()
             filtered[mask == 0] = [0, 0, 0]
 
-            cropped_plate, current_x = crop_plate(filtered, plate)
+            cropped_plate, current_pos = crop_plate(filtered, plate)
 
             final_cropped_plates.append(cropped_plate)
 
-    if abs(current_x - old_x) < 20:
-        print(abs(current_x - old_x))
-        x_coordinate_check = True
+    print(abs(current_pos - old_pos))
+    if abs(current_pos - old_pos) < 10:
+        coordinate_check = True
 
     grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     current_histogram, _ = np.histogram(grey_image.flatten(), bins=256, range=[0, 256])
@@ -191,12 +192,12 @@ def plate_detection(image, old_x, old_histogram):
 
         distance = np.linalg.norm(current_histogram - old_histogram)
         print(distance)
-        if distance < 0.2:
+        if distance < 0.15:
             histogram_check = True
     else:
         histogram_check = True
 
-    if x_coordinate_check or histogram_check:
+    if coordinate_check or histogram_check:
         print("Same scene")
     else:
         print("Different scene")
@@ -209,4 +210,4 @@ def plate_detection(image, old_x, old_histogram):
                 cv2.imshow(f'Plate {idx}', plate_img)
         cv2.waitKey(0)
 
-    return cropped_plates, current_x, current_histogram
+    return cropped_plates, current_pos, current_histogram

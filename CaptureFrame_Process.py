@@ -31,14 +31,14 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
 
     count = int(0 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, count)
-    old_x = 0
+    old_pos = 0
     old_histogram = None
 
     while (cap.isOpened()):
         # Capture frame-by-frame
         ret, frame = cap.read()
         if ret == True:
-            detections, old_x, old_histogram = Localization.plate_detection(frame, old_x, old_histogram)
+            detections, old_pos, old_histogram = Localization.plate_detection(frame, old_pos, old_histogram)
 
             # Display the resulting frame
             """for detection in detections:
