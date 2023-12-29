@@ -20,31 +20,25 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     Output: None
     """
 
-    # TODO: Read frames from the video (saved at `file_path`) by making use of `sample_frequency`
     cap = cv2.VideoCapture(file_path)
 
     output = open(save_path, "w")
     output.write("License plate,Frame no.,Timestamp(seconds)\n")
 
-    if (cap.isOpened() == False):
+    if not cap.isOpened():
         print("Error opening video stream or file")
 
     count = int(0 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, count)
 
-    while (cap.isOpened()):
+    while cap.isOpened():
         # Capture frame-by-frame
         ret, frame = cap.read()
-        if ret == True:
+        if ret:
             detections = Localization.plate_detection(frame)
 
-            # Display the resulting frame
-            """for detection in detections:
-                cv2.imshow('Frame', detection)"""
-
-            # TODO: Implement actual algorithms for Recognizing Characters
-            output.write("XS-NB-23,34,1.822\n")
-            # TODO: REMOVE THESE (below) and write the actual values in `output`
+            for detection in detections:
+                output.write(Recognize.segment_and_recognize(detection) + "\n")
 
             count += 1
             cap.set(cv2.CAP_PROP_POS_FRAMES, count)
