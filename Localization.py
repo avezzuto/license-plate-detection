@@ -84,7 +84,7 @@ def check_ratios(plates):
     return checked_plates
 
 
-def plate_detection(image, old_pos, old_histogram):
+def plate_detection(image):
     """
     In this file, you need to define plate_detection function.
     To do:
@@ -162,7 +162,6 @@ def plate_detection(image, old_pos, old_histogram):
     plate_images = check_ratios(rotated_plates)
 
     final_cropped_plates = []
-    current_pos = 0
     for idx, plate in enumerate(plate_images):
         if np.shape(plate)[0] > 0 and np.shape(plate)[1] > 0:
             hsv_plate = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
@@ -180,28 +179,6 @@ def plate_detection(image, old_pos, old_histogram):
 
             final_cropped_plates.append(cropped_plate)
 
-    print(abs(current_pos - old_pos))
-    if abs(current_pos - old_pos) < 10:
-        coordinate_check = True
-
-    grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    current_histogram, _ = np.histogram(grey_image.flatten(), bins=256, range=[0, 256])
-    if old_histogram is not None:
-        current_histogram = current_histogram / np.sum(current_histogram)
-        old_histogram = old_histogram / np.sum(old_histogram)
-
-        distance = np.linalg.norm(current_histogram - old_histogram)
-        print(distance)
-        if distance < 0.15:
-            histogram_check = True
-    else:
-        histogram_check = True
-
-    if coordinate_check or histogram_check:
-        print("Same scene")
-    else:
-        print("Different scene")
-
     if showImages:
         cv2.imshow('Original frame', image)
         cv2.imshow('Masked frame', eroded)
@@ -210,4 +187,4 @@ def plate_detection(image, old_pos, old_histogram):
                 cv2.imshow(f'Plate {idx}', plate_img)
         cv2.waitKey(0)
 
-    return cropped_plates, current_pos, current_histogram
+    return cropped_plates
