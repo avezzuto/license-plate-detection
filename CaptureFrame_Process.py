@@ -37,7 +37,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
         # Capture frame-by-frame
         ret, frame = cap.read()
         if ret:
-            cv2.imshow('Original frame', frame)
+            if showImages:
+                cv2.imshow('Original frame', frame)
 
             detections = Localization.plate_detection(frame)
 
