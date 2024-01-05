@@ -18,6 +18,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
         3. save_path: final .csv file path
     Output: None
     """
+    showImages = False
 
     cap = cv2.VideoCapture(file_path)
 
@@ -42,7 +43,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
 
             for idx, detection in enumerate(detections):
                 if np.shape(detection)[0] > 0 and np.shape(detection)[1] > 0:
-                    cv2.imshow(f'Cropped plate {idx}', detection)
+                    if showImages:
+                        cv2.imshow(f'Cropped plate {idx}', detection)
                 plate = Recognize.segment_and_recognize(detection)
                 if prev_plates is None or plate in prev_plates:
                     prev_plates = []

@@ -44,6 +44,8 @@ def segment_and_recognize(plate_image):
 	Hints:
 		You may need to define other functions.
 	"""
+	showImages = False
+
 	ratio = 70 / plate_image.shape[0]
 	width = int(plate_image.shape[1] * ratio)
 	resized = cv2.resize(plate_image, (width, 70))
@@ -109,8 +111,8 @@ def segment_and_recognize(plate_image):
 			count += 1
 		elif np.count_nonzero(segment_mask) > 50:
 			hyphen_pos.append(count)
-
-	cv2.imshow("Binarised mask", eroded)
+	if showImages:
+		cv2.imshow("Binarised mask", eroded)
 
 	letters = read('dataset/SameSizeLetters')
 	numbers = read('dataset/SameSizeNumbers')
@@ -143,7 +145,8 @@ def segment_and_recognize(plate_image):
 			# Concatenate the original image and black padding horizontally
 			char = np.concatenate((char, black_padding), axis=1)
 
-		cv2.imshow(f'Char {i}', char)
+		if showImages:
+			cv2.imshow(f'Char {i}', char)
 
 		for idx, number in enumerate(numbers):
 			number = number[:, :, 0]
