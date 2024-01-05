@@ -61,17 +61,14 @@ def split_license_plates(mask, image, direction):
 
 
 def crop_plate(mask, image):
-    min_x = 0
-    min_y = 0
     non_black_indices = np.argwhere(np.any(mask != mask[0, 0], axis=-1))
     if non_black_indices.size > 0:
         min_y, min_x = non_black_indices.min(axis=0)
         max_y, max_x = non_black_indices.max(axis=0)
 
         # Crop the plate
-        plate = image[min_y:max_y + 1, min_x:max_x + 1, :]
-        return plate, min_x + min_y
-    return image, min_x + min_y
+        image = image[min_y:max_y + 1, min_x:max_x + 1, :]
+    return image
 
 
 def check_ratios(plates):
@@ -100,8 +97,6 @@ def plate_detection(image):
         1. You may need to define other functions, such as crop and adjust function
         2. You may need to define two ways for localizing plates(yellow or other colors)
     """
-    showImages = False
-
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     kernel_size = 5
@@ -151,36 +146,45 @@ def plate_detection(image):
 
     cropped_plates = []
     for singleMask, split_img in zip(split_mask, split_image):
-        cropped, _ = crop_plate(singleMask, split_img)
+        cropped = crop_plate(singleMask, split_img)
         cropped_plates.append(cropped)
 
     rotated_plates = Rotation.rotate(cropped_plates)
 
     plate_images = check_ratios(rotated_plates)
 
-    final_cropped_plates = []
+    current_plates = []
+    current_non_zero = []
+
     for idx, plate in enumerate(plate_images):
         if np.shape(plate)[0] > 0 and np.shape(plate)[1] > 0:
             hsv_plate = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
 
+            kernel_size = 5
+            blur = cv2.GaussianBlur(hsv_plate, (kernel_size, kernel_size), kernel_size / 6)
+
             # Define color range
-            colorMin = np.array([10, 50, 50])  # Lower HSV values for yellow
-            colorMax = np.array([30, 255, 255])  # Higher HSV values for yellow
+            colorMin = np.array([16, 70, 70])  # Lower HSV values for yellow
+            colorMax = np.array([25, 255, 255])  # Higher HSV values for yellow
 
             # Segment only the selected color from the image and leave out all the rest (apply a mask)
-            mask = cv2.inRange(hsv_plate, colorMin, colorMax)
+            mask = cv2.inRange(blur, colorMin, colorMax)
             filtered = plate.copy()
             filtered[mask == 0] = [0, 0, 0]
 
-            cropped_plate, current_pos = crop_plate(filtered, plate)
+            cropped_plate = crop_plate(filtered, plate)
 
-            final_cropped_plates.append(cropped_plate)
+            current_plates.append(cropped_plate)
+            current_non_zero.append(np.count_nonzero(cropped_plate))
 
-    if showImages:
-        cv2.imshow('Original frame', image)
-        for idx, plate_img in enumerate(final_cropped_plates):
-            if np.shape(plate_img)[0] > 0 and np.shape(plate_img)[1] > 0:
-                cv2.imshow(f'Cropped plate {idx}', plate_img)
-        cv2.waitKey(0)
+    final_cropped_plates = []
+    if len(current_non_zero) > 0:
+        maximal = max(current_non_zero)
+        if len(current_plates) > 1:
+            for idx, plate in enumerate(current_plates):
+                if abs(maximal - current_non_zero[idx]) < 5000 or current_non_zero[idx] < 1000:
+                    final_cropped_plates.append(plate)
+        else:
+            final_cropped_plates.append(current_plates[0])
 
-    return cropped_plates
+    return final_cropped_plates
