@@ -150,20 +150,22 @@ def segment_and_recognize(plate_image):
 
 		for idx, number in enumerate(numbers):
 			number = number[:, :, 0]
-			xor = cv2.bitwise_xor(char, number)
-			diff = np.count_nonzero(xor)
-			#cv2.imshow(f'Difference with number {idx}', xor)
-			if diff < minDiff:
-				minDiff = diff
-				minChar = idx
+			if char.shape == number.shape:
+				xor = cv2.bitwise_xor(char, number)
+				diff = np.count_nonzero(xor)
+				#cv2.imshow(f'Difference with number {idx}', xor)
+				if diff < minDiff:
+					minDiff = diff
+					minChar = idx
 		for index, letter in enumerate(letters):
 			letter = letter[:, :, 0]
-			xor = cv2.bitwise_xor(char, letter)
-			diff = np.count_nonzero(xor)
-			#cv2.imshow(f'Difference with letter {mapping[index]}', xor)
-			if diff < minDiff:
-				minDiff = diff
-				minChar = mapping[index]
+			if char.shape == letter.shape:
+				xor = cv2.bitwise_xor(char, letter)
+				diff = np.count_nonzero(xor)
+				#cv2.imshow(f'Difference with letter {mapping[index]}', xor)
+				if diff < minDiff:
+					minDiff = diff
+					minChar = mapping[index]
 		plate += str(minChar)
 
 	hyphen_pos.sort(reverse=True)
