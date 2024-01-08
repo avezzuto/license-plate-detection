@@ -23,8 +23,8 @@ def read(path):
 
 def create_dutch_license_plate_mapping():
 	# Create a mapping of numbers to letters
-	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G",
-			   12: "H", 13: "J", 14: "K", 15: "L", 16: "M"}
+	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 15: "L", 16: "M"}
+	#mapping = {0: "B", 1: "D", 2: "F", 3: "G", 4: "H", 5: "J", 6: "K", 7: "L", 8: "M", 9: "N", 10: "P", 11: "R", 12: "S", 13: "T", 14: "V", 15: "X", 16: "Z"}
 	return mapping
 
 
@@ -44,7 +44,7 @@ def segment_and_recognize(plate_image):
 	Hints:
 		You may need to define other functions.
 	"""
-	showImages = False
+	showImages = True #False
 
 	ratio = 70 / plate_image.shape[0]
 	width = int(plate_image.shape[1] * ratio)
@@ -124,6 +124,14 @@ def segment_and_recognize(plate_image):
 		minChar = ""
 		minDiff = 1000000
 
+		# Get rid of black pixels around the character
+		positions = np.nonzero(char)
+		del_lines_top = positions[0].min()
+		del_lines_bottom = positions[0].max()
+		del_lines_left = positions[1].min()
+		del_lines_right = positions[1].max()
+		char = char[del_lines_top:del_lines_bottom, del_lines_left:del_lines_right]
+
 		# Calculate the aspect ratio
 		aspect_ratio = char.shape[1] / char.shape[0]
 
@@ -147,7 +155,7 @@ def segment_and_recognize(plate_image):
 
 		if showImages:
 			cv2.imshow(f'Char {i}', char)
-
+		print(" Doing char " + str(i))
 		for idx, number in enumerate(numbers):
 			number = number[:, :, 0]
 			if char.shape == number.shape:
@@ -155,8 +163,10 @@ def segment_and_recognize(plate_image):
 				diff = np.count_nonzero(xor)
 				#cv2.imshow(f'Difference with number {idx}', xor)
 				if diff < minDiff:
+					print("for numbers the closest is " + str(idx))
 					minDiff = diff
 					minChar = idx
+
 		for index, letter in enumerate(letters):
 			letter = letter[:, :, 0]
 			if char.shape == letter.shape:
@@ -164,9 +174,13 @@ def segment_and_recognize(plate_image):
 				diff = np.count_nonzero(xor)
 				#cv2.imshow(f'Difference with letter {mapping[index]}', xor)
 				if diff < minDiff:
+					print("for letters the closest is "+ str(mapping[index]))
 					minDiff = diff
 					minChar = mapping[index]
+
 		plate += str(minChar)
+		print("Final min char is " + str(minChar))
+	print("product: " + plate)
 
 	hyphen_pos.sort(reverse=True)
 	for pos in hyphen_pos:

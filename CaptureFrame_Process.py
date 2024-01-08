@@ -18,7 +18,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
         3. save_path: final .csv file path
     Output: None
     """
-    showImages = False
+    showImages = True #False
 
     cap = cv2.VideoCapture(file_path)
 
