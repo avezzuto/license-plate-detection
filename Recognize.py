@@ -58,7 +58,8 @@ def segment_and_recognize(plate_image):
 
 	kernel_size = 5
 	blur = cv2.GaussianBlur(hsv_plate, (kernel_size, kernel_size), kernel_size / 6)
-	cv2.imshow("blur", blur)
+	#cv2.imshow("blur", blur)
+	cv2.imshow("plate", plate_image)
 
 	# Define color range
 	colorMin = np.array([0, 120, 120]) #16, 130, 130])  # Lower HSV values for yellow
@@ -229,5 +230,5 @@ def segment_and_recognize(plate_image):
 				plate += str(numberFit[idx][0])
 
 
-	print("product: " + plate)
+	#print("product: " + plate)
 	return plate

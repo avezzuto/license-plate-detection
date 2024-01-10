@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import Localization
 import Recognize
+import evaluation
 
 
 def CaptureFrame_Process(file_path, sample_frequency, save_path):
@@ -18,7 +19,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
         3. save_path: final .csv file path
     Output: None
     """
-    showImages = True #False
+    showImages = False
 
     cap = cv2.VideoCapture(file_path)
 
@@ -28,7 +29,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     if not cap.isOpened():
         print("Error opening video stream or file")
 
-    frame_no = int(7 * cap.get(cv2.CAP_PROP_FPS))
+    frame_no = int(0 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
     prev_plates = []
@@ -48,16 +49,19 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                         cv2.imshow(f'Cropped plate {idx}', detection)
                 plate = Recognize.segment_and_recognize(detection)
                 if prev_plates is None or plate in prev_plates:
-                    prev_plates = []
+                    #prev_plates = []
                     seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
-                    print(f'{plate},{frame_no},{seconds}')
+                    #print(f'{plate},{frame_no},{seconds}')
                     output.write(f'{plate},{frame_no},{seconds}\n')
                 else:
                     prev_plates.append(plate)
 
-            cv2.waitKey(0)
 
-            frame_no += 5
+            accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates)
+            #if(accuracy is not None):
+            #   cv2.waitKey(0)
+
+            frame_no += 1 #5
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
             # Press Q on keyboard to  exit
