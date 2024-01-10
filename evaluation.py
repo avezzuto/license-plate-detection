@@ -1,6 +1,8 @@
 import pandas as pd
 import argparse
 import numpy as np
+import cv2
+import Recognize
 
 
 def get_args():
@@ -123,33 +125,7 @@ if __name__ == '__main__':
 	c12score = TP12/(TP12+FP12+FN12)
 	print('%29s'%'Score of Category I & II:', c12score)
 
-def evalLocalization(image, mask, frame_num):
-	mina = mask.shape[1]
-	minb = mask.shape[0]
-	maxa = 0 
-	maxb = 0
-	for y in range(mask.shape[0]):
-		for x in range(mask.shape[1]):
-			if (mask[y][x] != mask[0][0]).all():
-				if(x < mina):
-					mina = x
-				if(y < minb):
-					minb = y
-				if(x > maxa):
-					maxa = x
-				if(y > maxb):
-					maxb = y
-	if(mina == mask.shape[1]):
-		mina = 0
-	if(minb == mask.shape[0]):
-		minb = 0
-	if(maxa == 0):
-		maxa = mask.shape[1]
-	if(maxb == 0):
-		maxb = mask.shape[0]
-	minP = (mina, minb)
-	maxP = (maxa, maxb)
-	#mask = cv2.rectangle(mask, minP, maxP, (0,0,255), 1 )
+def positionsList():
 
 	# list of manual bounding boxes for the plates in format (frame number, left-upper corner, right-lower corner)
 	list = ((24, (217, 326), (443, 382)), 
@@ -211,7 +187,39 @@ def evalLocalization(image, mask, frame_num):
 			(1624, (13, 167), (634, 379)),
 			(1674, (109, 178), (582, 319)),
 			(1699, (76, 277), (608, 397))
-	)
+		)
+	return list
+
+
+def evalLocalization(image, mask, frame_num):
+	mina = mask.shape[1]
+	minb = mask.shape[0]
+	maxa = 0 
+	maxb = 0
+	for y in range(mask.shape[0]):
+		for x in range(mask.shape[1]):
+			if (mask[y][x] != mask[0][0]).all():
+				if(x < mina):
+					mina = x
+				if(y < minb):
+					minb = y
+				if(x > maxa):
+					maxa = x
+				if(y > maxb):
+					maxb = y
+	if(mina == mask.shape[1]):
+		mina = 0
+	if(minb == mask.shape[0]):
+		minb = 0
+	if(maxa == 0):
+		maxa = mask.shape[1]
+	if(maxb == 0):
+		maxb = mask.shape[0]
+	minP = (mina, minb)
+	maxP = (maxa, maxb)
+	#mask = cv2.rectangle(mask, minP, maxP, (0,0,255), 1 )
+
+	list = positionsList()
 
 	for element in list:
 		if(frame_num == element[0]):
@@ -233,6 +241,26 @@ def evalLocalization(image, mask, frame_num):
 			finalAccuracy += accuracy
 			accCount += 1
 
-			print("frame "+ str(element[0]) + " : " + str(accuracy) + " % " + " and overall accuracy: " + str(finalAccuracy / accCount) + " % ")
+			print("Frame "+ str(element[0]) + " : " + str(accuracy) + " % " + " and overall accuracy: " + str(finalAccuracy / accCount) + " % ")
 	#print("(" + str(frame_num) + ", " + str(minP) + ", " + str(maxP) + "),")
 	return image
+
+def evalRecognition(image, frame_num):
+	list = positionsList()
+
+	for element in list:
+		if(frame_num == element[0]):
+			plate_image = image.crop(element[1], element[2])
+
+			recognized_text = Recognize.segment_and_recognize(plate_image)
+			expected_text = element[3]
+
+			sum = 0
+			for characterR, characterE in recognized_text, expected_text:
+				if(characterE == characterR):
+					sum += 1
+			accuracy = 100 * sum / len(recognized_text)
+	print("Frame " + str(element[0]) + " : " + recognized_text + " expected " + expected_text + " accuracy " + str(accuracy) + "%")
+	# returns accuracy in percent
+	return accuracy
+

@@ -28,7 +28,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     if not cap.isOpened():
         print("Error opening video stream or file")
 
-    frame_no = int(0 * cap.get(cv2.CAP_PROP_FPS))
+    frame_no = int(7 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
     prev_plates = []

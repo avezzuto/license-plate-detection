@@ -23,7 +23,7 @@ def read(path):
 
 def create_dutch_license_plate_mapping():
 	# Create a mapping of numbers to letters
-	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 15: "L", 16: "M"}
+	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 15: "L", 16: "M", 17:"B"}
 	#mapping = {0: "B", 1: "D", 2: "F", 3: "G", 4: "H", 5: "J", 6: "K", 7: "L", 8: "M", 9: "N", 10: "P", 11: "R", 12: "S", 13: "T", 14: "V", 15: "X", 16: "Z"}
 	return mapping
 
@@ -46,9 +46,11 @@ def segment_and_recognize(plate_image):
 	"""
 	showImages = True #False
 
-	ratio = 70 / plate_image.shape[0]
-	width = int(plate_image.shape[1] * ratio)
-	resized = cv2.resize(plate_image, (width, 70))
+	# Resize the licence to a wanted size
+	new_height = 70
+	ratio = new_height / plate_image.shape[0]
+	new_width = int(plate_image.shape[1] * ratio)
+	resized = cv2.resize(plate_image, (new_width, new_height))
 
 	cropped = crop(resized)
 
@@ -56,18 +58,21 @@ def segment_and_recognize(plate_image):
 
 	kernel_size = 5
 	blur = cv2.GaussianBlur(hsv_plate, (kernel_size, kernel_size), kernel_size / 6)
+	cv2.imshow("blur", blur)
 
 	# Define color range
-	colorMin = np.array([16, 130, 130])  # Lower HSV values for yellow
-	colorMax = np.array([25, 255, 255])  # Higher HSV values for yellow
+	colorMin = np.array([0, 120, 120]) #16, 130, 130])  # Lower HSV values for yellow
+	colorMax = np.array([50, 255, 255]) #25, 255, 255])  # Higher HSV values for yellow
 
 	# Segment only the selected color from the image and leave out all the rest (apply a mask)
 	mask = cv2.inRange(blur, colorMin, colorMax)
+	cv2.imshow("mask", mask)
 	filtered = blur.copy()
 	filtered[mask == 0] = [0, 0, 0]
 	filtered_resized = cv2.resize(filtered, (plate_image.shape[1], plate_image.shape[0]))
 	result = cv2.bitwise_and(plate_image, filtered_resized)
 
+	
 	grey_mask = result[:, :, 2]
 	equalised = cv2.equalizeHist(grey_mask)
 	binarised = np.where(equalised > 0, 0, 255).astype(np.uint8)
@@ -197,14 +202,14 @@ def segment_and_recognize(plate_image):
 					minChar = mapping[idx]
 		letterFit.append((minChar, minDiff))
 
-	# Decisions made based on the group od letters/numbers
+	# Decisions made based on the group of letters/numbers
 	for idx, group in enumerate(groups):
 		sumNumDif = 0
 		sumLetDif = 0
 		for i in range(group[0], group[1]):
 			sumNumDif += numberFit[i][1]
 			sumLetDif += letterFit[i][1]
-		if(sumNumDif < sumLetDif):
+		if(sumNumDif <= sumLetDif):
 			for i in range(group[0], group[1]):
 				plate += str(numberFit[i][0])
 		else:
@@ -216,7 +221,7 @@ def segment_and_recognize(plate_image):
 	if(not UseCharGrouping):
 		plate = ""
 		for idx in range(len(chars)):
-			if(idx in hyphen_pos and idx != 0 and idx != 6):
+			if(idx in hyphen_pos and idx != 0 and idx < 6):
 				plate += "-"
 			if(letterFit[idx][1] < numberFit[idx][1]):
 				plate += str(letterFit[idx][0])
