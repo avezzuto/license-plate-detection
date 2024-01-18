@@ -49,19 +49,20 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                         cv2.imshow(f'Cropped plate {idx}', detection)
                 plate = Recognize.segment_and_recognize(detection)
                 if prev_plates is None or plate in prev_plates:
-                    #prev_plates = []
+                    prev_plates = []
                     seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
-                    #print(f'{plate},{frame_no},{seconds}')
+                    print(f'{plate},{frame_no},{seconds}')
                     output.write(f'{plate},{frame_no},{seconds}\n')
                 else:
                     prev_plates.append(plate)
 
-
-            accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates)
+            cv2.waitKey(0)
+            
+            #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates)
             #if(accuracy is not None):
             #   cv2.waitKey(0)
 
-            frame_no += 1 #5
+            frame_no += 5
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
             # Press Q on keyboard to  exit
