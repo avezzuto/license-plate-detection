@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import Localization
 import Recognize
+import evaluation
 
 
 def CaptureFrame_Process(file_path, sample_frequency, save_path):
@@ -56,6 +57,10 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                     prev_plates.append(plate)
 
             cv2.waitKey(0)
+            
+            #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates)
+            #if(accuracy is not None):
+            #   cv2.waitKey(0)
 
             frame_no += 5
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
