@@ -91,8 +91,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     frame_no = int(0 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
-    prev_plates = []#"", "", ""]
-    iThinkItIs = ""
+    prev_plates = [[]]
+    prediction = [""]
 
     while cap.isOpened():
         # Capture frame-by-frame
@@ -104,29 +104,32 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
             detections = Localization.plate_detection(frame)
 
             for idx, detection in enumerate(detections):
+                if(idx > len(prev_plates)):
+                    prev_plates.append([])
+                    prediction.append("")
                 if np.shape(detection)[0] > 0 and np.shape(detection)[1] > 0:
                     if showImages:
                         cv2.imshow(f'Cropped plate {idx}', detection)
                 plate = Recognize.segment_and_recognize(detection)
                 if plate != None and plate != "-":
-                    prev_plates.append(plate)
-                    iThinkItIs = majorityPlate(prev_plates)
-                    if(iThinkItIs == None):
+                    prev_plates[idx].append(plate)
+                    prediction[idx] = majorityPlate(prev_plates[idx])
+                    if(prediction[idx] == None):
                         #print("Nothing from plates " + str(prev_plates))
-                        iThinkItIs = "Nothing_"
+                        prediction[idx] = "Nothing_"
                     # Scene change
-                    if(len(prev_plates) >= 20):  # needs at least 20 frames to conclude a scene, for shorter scenes change here
-                        hM0 = hummingDistance(plate, iThinkItIs)
-                        hM1 = hummingDistance(prev_plates[len(prev_plates) - 2], iThinkItIs)
-                        hM2 = hummingDistance(prev_plates[len(prev_plates) - 3], iThinkItIs)
+                    if(len(prev_plates[idx]) >= 20):  # needs at least 20 frames to conclude a scene, for shorter scenes change here
+                        hM0 = hummingDistance(plate, prediction[idx])
+                        hM1 = hummingDistance(prev_plates[idx][len(prev_plates[idx]) - 2], prediction[idx])
+                        hM2 = hummingDistance(prev_plates[idx][len(prev_plates[idx]) - 3], prediction[idx])
                         percentile = 62
-                        res = majorityPlate(prev_plates[:-3])
-                        if(hM0 < percentile and hM1 < percentile and hM2 < percentile and res != None):
-                            a, b, c = prev_plates[len(prev_plates) - 1], prev_plates[len(prev_plates) - 2], prev_plates[len(prev_plates) - 3]
-                            prev_plates = [a, b, c]
+                        finalPrediction = majorityPlate(prev_plates[idx][:-3])
+                        if(hM0 < percentile and hM1 < percentile and hM2 < percentile and finalPrediction != None):
+                            a, b, c = prev_plates[idx][len(prev_plates[idx]) - 1], prev_plates[idx][len(prev_plates[idx]) - 2], prev_plates[idx][len(prev_plates[idx]) - 3]
+                            prev_plates[idx] = [a, b, c]
                             seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
-                            print(f'{res},{frame_no},{seconds}')
-                            output.write(f'{res},{frame_no},{seconds}\n')
+                            print(f'{finalPrediction},{frame_no},{seconds}')
+                            output.write(f'{finalPrediction},{frame_no},{seconds}\n')
 
                 #if prev_plates is None or plate in prev_plates:
                 #    prev_plates = []
@@ -138,7 +141,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
 
             #cv2.waitKey(0)
             
-            #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates)
+            #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates[idx])
             #if accuracy is not None:
                 #cv2.waitKey(0)
 
