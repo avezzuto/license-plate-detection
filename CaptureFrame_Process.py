@@ -93,6 +93,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
 
     prev_plates = [[]]
     prediction = [""]
+    time = [()]
 
     while cap.isOpened():
         # Capture frame-by-frame
@@ -102,6 +103,11 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                 cv2.imshow('Original frame', frame)
 
             detections = Localization.plate_detection(frame)
+
+            seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
+            time.append((frame_no, seconds))
+            if(len(time) > 5):
+                time.pop(0)
 
             for idx, detection in enumerate(detections):
                 if(idx >= len(prev_plates)):
@@ -128,9 +134,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                             a, b, c = prev_plates[idx][len(prev_plates[idx]) - 1], prev_plates[idx][len(prev_plates[idx]) - 2], prev_plates[idx][len(prev_plates[idx]) - 3]
                             prev_plates[idx] = [a, b, c]
 
-                            seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
-                            print(f'{finalPrediction},{frame_no},{seconds}')
-                            output.write(f'{finalPrediction},{frame_no},{seconds}\n')
+                            print(f'{finalPrediction},{time[0][0]},{time[0][1]}')
+                            output.write(f'{finalPrediction},{time[0][0]},{time[0][1]}\n')
 
             #cv2.waitKey(0)
             
