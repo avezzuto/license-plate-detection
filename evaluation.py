@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import cv2
 import Recognize
+import Rotation
 
 
 def get_args():
@@ -195,6 +196,7 @@ def positionsList():
 
 finalAccuracy = 0
 accCount = 0
+
 def evalLocalization(image, mask, frame_num):
 	mina = mask.shape[1]
 	minb = mask.shape[0]
@@ -251,6 +253,7 @@ def evalLocalization(image, mask, frame_num):
 
 totalAccuracy = 0
 textCount = 0
+
 def evalRecognition(image, frame_num, plates):
 	list = positionsList()
 
@@ -258,15 +261,23 @@ def evalRecognition(image, frame_num, plates):
 	for element in list:
 		if(frame_num == element[0]):
 			frame_found = True
-			plate_image = image[element[1][0]:element[2][0], element[1][1]:element[2][1]]
+			plate_image = image[element[1][1]:element[2][1], element[1][0]:element[2][0]]
+			list = Rotation.rotate([plate_image])
+			plate_image = list[0]
+			plate_image = Recognize.crop(plate_image)
 
 			recognized = Recognize.segment_and_recognize(plate_image)
-			plates.append(recognized)
+			eval_plates = plates.copy()
+			eval_plates.append(recognized)
 	
 			expected_text = element[3]
 			bestAccuracy = 0.0
 			
-			for recognized_text in plates:
+			if(expected_text in eval_plates):
+				bestAccuracy = 100
+				recognized = expected_text
+				""""
+			for recognized_text in eval_plates:
 				sum = 0
 				shorter = min(len(recognized_text), len(expected_text))
 				for i in range(shorter):
@@ -278,7 +289,7 @@ def evalRecognition(image, frame_num, plates):
 				if(accuracy > bestAccuracy):
 					bestAccuracy = accuracy
 					recognized = recognized_text
-
+				"""
 			global totalAccuracy
 			global textCount
 			totalAccuracy += bestAccuracy

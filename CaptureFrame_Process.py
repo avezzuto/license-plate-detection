@@ -5,6 +5,65 @@ import Recognize
 import evaluation
 
 
+def hummingDistance(x, y):
+	same = 0
+	shorter = min(len(x), len(y))
+	for i in range(shorter):
+		if(x[i] == y[i]):
+			same += 1
+	return same / shorter * 100
+	
+def majorityPlate(plates):
+    #find most common dash positions
+    firstDash = []
+    secondDash = []
+    for plate in plates:
+        second = False
+        for i in range(len(plate)):
+            if(plate[i] == "-" and i != 0):
+                if(not second):
+                    firstDash.append(i)
+                    second = True
+                else:
+                    secondDash.append(i)
+                    break
+    if(secondDash == []):
+        return None
+    firstD = max(set(firstDash), key = firstDash.count)
+    secondD = max(set(secondDash), key = secondDash.count)
+    if(firstD < 1 or firstD > 3 or secondD < 4 or secondD > 6):
+        return None
+    #delete dashes
+    platesNoDash = []
+    for plate in plates:
+        string = ""
+        for char in plate:
+            if(char != "-"):
+                string += char
+        platesNoDash.append(string)
+    #find most common letters
+    finalPlate = ""
+    for i in range(6):
+        letters = []
+        for plate in platesNoDash:
+            if(i < len(plate)):
+                letters.append(plate[i])
+        if(letters == []):
+            continue
+        char = max(set(letters), key = letters.count)
+        finalPlate += char
+    if(len(finalPlate) != 6):
+        return None
+    #insert dashes
+    finalDashPlate = ""
+    for char in finalPlate:
+        finalDashPlate += char
+        if(len(finalDashPlate) == firstD or len(finalDashPlate) == secondD):
+            finalDashPlate += "-"
+    
+    return finalDashPlate
+         
+
 def CaptureFrame_Process(file_path, sample_frequency, save_path):
     """
     In this file, you will define your own CaptureFrame_Process funtion. In this function,
@@ -32,7 +91,8 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     frame_no = int(0 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
-    prev_plates = []
+    prev_plates = []#"", "", ""]
+    iThinkItIs = ""
 
     while cap.isOpened():
         # Capture frame-by-frame
@@ -48,21 +108,41 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                     if showImages:
                         cv2.imshow(f'Cropped plate {idx}', detection)
                 plate = Recognize.segment_and_recognize(detection)
-                if prev_plates is None or plate in prev_plates:
-                    prev_plates = []
-                    seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
-                    print(f'{plate},{frame_no},{seconds}')
-                    output.write(f'{plate},{frame_no},{seconds}\n')
-                else:
+                if plate != None and plate != "-":
                     prev_plates.append(plate)
+                    iThinkItIs = majorityPlate(prev_plates)
+                    if(iThinkItIs == None):
+                        #print("Nothing from plates " + str(prev_plates))
+                        iThinkItIs = "Nothing_"
+                    # Scene change
+                    if(len(prev_plates) >= 20):  # needs at least 20 frames to conclude a scene, for shorter scenes change here
+                        hM0 = hummingDistance(plate, iThinkItIs)
+                        hM1 = hummingDistance(prev_plates[len(prev_plates) - 2], iThinkItIs)
+                        hM2 = hummingDistance(prev_plates[len(prev_plates) - 3], iThinkItIs)
+                        percentile = 62
+                        res = majorityPlate(prev_plates[:-3])
+                        if(hM0 < percentile and hM1 < percentile and hM2 < percentile and res != None):
+                            a, b, c = prev_plates[len(prev_plates) - 1], prev_plates[len(prev_plates) - 2], prev_plates[len(prev_plates) - 3]
+                            prev_plates = [a, b, c]
+                            seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
+                            print(f'{res},{frame_no},{seconds}')
+                            output.write(f'{res},{frame_no},{seconds}\n')
 
-            cv2.waitKey(0)
+                #if prev_plates is None or plate in prev_plates:
+                #    prev_plates = []
+                #    seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
+                #    print(f'{plate},{frame_no},{seconds}')
+                #    output.write(f'{plate},{frame_no},{seconds}\n')
+                #else:
+                #    prev_plates.append(plate)
+
+            #cv2.waitKey(0)
             
             #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates)
-            #if(accuracy is not None):
-            #   cv2.waitKey(0)
+            #if accuracy is not None:
+                #cv2.waitKey(0)
 
-            frame_no += 5
+            frame_no += 1 #5
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
             # Press Q on keyboard to  exit

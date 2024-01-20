@@ -23,7 +23,7 @@ def read(path):
 
 def create_dutch_license_plate_mapping():
 	# Create a mapping of numbers to letters
-	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 15: "L", 16: "M", 17:"B"}
+	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 15: "L", 16: "M", 17:"B", 18:"R", 19:"P"}
 	#mapping = {0: "B", 1: "D", 2: "F", 3: "G", 4: "H", 5: "J", 6: "K", 7: "L", 8: "M", 9: "N", 10: "P", 11: "R", 12: "S", 13: "T", 14: "V", 15: "X", 16: "Z"}
 	return mapping
 
@@ -45,7 +45,6 @@ def segment_and_recognize(plate_image):
 		You may need to define other functions.
 	"""
 	showImages = False
-
 	# Resize the licence to a wanted size
 	new_height = 70
 	ratio = new_height / plate_image.shape[0]
@@ -53,73 +52,60 @@ def segment_and_recognize(plate_image):
 	resized = cv2.resize(plate_image, (new_width, new_height))
 
 	cropped = crop(resized)
-
-	hsv_plate = cv2.cvtColor(cropped, cv2.COLOR_BGR2HSV)
-
-	kernel_size = 5
-	blur = cv2.GaussianBlur(hsv_plate, (kernel_size, kernel_size), kernel_size / 6)
+		
+	grey = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+	blurred = cv2.GaussianBlur(grey, (5, 5), 0)
+	thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 8)
+	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+	opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+	closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
 	if showImages:
-		cv2.imshow("plate", plate_image)
+		cv2.imshow("After morphology", closing)
+		
+	ROI_number = 0
+	cropped_char = list()
+	contours = cv2.findContours(closing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+	contours = contours[0] if len(contours) == 2 else contours[1]
+	contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
+	hyphen_positions = list()
+	for contour in contours:
+		x, y, width, height = cv2.boundingRect(contour)
+		ROI = closing[y:y + height, x:x + width]
+		ratio = height/width
+		#print(ROI.shape[1])
+		#print(ratio)
+		if ROI.shape[1] >= 7:
+			if 4 > ratio > 1.2 and ROI.shape[0] > 30:
+				cropped_char.append(ROI)
+				ROI_number += 1
+				#print("Classified as char")
+			elif (0.9 > ratio > 0.3
+					and (not hyphen_positions or hyphen_positions[-1] + 2 < ROI_number)
+					and ROI.shape[0] < 13
+					and ROI_number != 0):
+				hyphen_positions.append(ROI_number)
+				ROI_number += 1
+				#print("Classified as hyphen")
+			#else:
+				#print("Noise")
+		#else:
+			#print("Noise")
 
-	# Define color range
-	colorMin = np.array([0, 120, 120]) #16, 130, 130])  # Lower HSV values for yellow
-	colorMax = np.array([50, 255, 255]) #25, 255, 255])  # Higher HSV values for yellow
-
-	# Segment only the selected color from the image and leave out all the rest (apply a mask)
-	mask = cv2.inRange(blur, colorMin, colorMax)
+		if ROI_number >= 8:
+			break
 	if showImages:
-		cv2.imshow("mask", mask)
-	filtered = blur.copy()
-	filtered[mask == 0] = [0, 0, 0]
-	filtered_resized = cv2.resize(filtered, (plate_image.shape[1], plate_image.shape[0]))
-	result = cv2.bitwise_and(plate_image, filtered_resized)
+		for idx, char in enumerate(cropped_char):
+			cv2.imshow(f'Cropped character {idx}', char)
 
-	
-	grey_mask = result[:, :, 2]
-	equalised = cv2.equalizeHist(grey_mask)
-	binarised = np.where(equalised > 0, 0, 255).astype(np.uint8)
+	#for pos in hyphen_positions:
+		#print(f'Hyphen position: {pos}')
 
-	structuring_element = np.array([[1, 1, 1],
-									[1, 1, 1],
-									[1, 1, 1]], np.uint8)
+	#print("\n")
 
-	# Improve the mask using morphological dilation and erosion
-	eroded = cv2.erode(binarised, structuring_element)
-	dilated = cv2.dilate(eroded, structuring_element)
-	dilatedClosing = cv2.dilate(dilated, structuring_element)
-	img = cv2.erode(dilatedClosing, structuring_element)
 
-	indices_to_start = []
-	indices_to_end = []
-	started = False
-	for i in range(img.shape[1]):
-		section = img[:, i]
-		unique_colors = np.unique(section)
-		if 255 in unique_colors:
-			if not started:
-				indices_to_start.append(i)
-				started = True
-		else:
-			if started:
-				indices_to_end.append(i)
-				started = False
 
-	# Add the last section if it ends with white pixels
-	if started:
-		indices_to_end.append(img.shape[1])
 
-	chars = []
-	hyphen_pos = []
-	count = 0
-	for start, end in zip(indices_to_start, indices_to_end):
-		segment_mask = img[:, start:end]
-		if np.count_nonzero(segment_mask) > 100:
-			chars.append(segment_mask)
-			count += 1
-		elif np.count_nonzero(segment_mask) > 50:
-			hyphen_pos.append(count)
-	if showImages:
-		cv2.imshow("Binarised mask", img)
+
 
 	letters = read('dataset/SameSizeLetters')
 	numbers = read('dataset/SameSizeNumbers')
@@ -132,20 +118,24 @@ def segment_and_recognize(plate_image):
 	# Each of 3 sections of a dutch licence plate consist on only letters or only numbers
 	groups = []
 	pre_pos = 0
-	for pos in hyphen_pos:
+	if(len(hyphen_positions) >= 2 and hyphen_positions[0] > 0 and hyphen_positions[1] > 0):
+		hyphen_positions[1] -= 1
+	for pos in hyphen_positions:
 		if(pos == 0):
+			continue
+		if(pos > len(cropped_char)):
 			continue
 		group = [pre_pos, pos]
 		groups.append(group)
 		pre_pos = pos
-	groups.append([pre_pos, len(chars)])
+	groups.append([pre_pos, len(cropped_char)])
 
 	letterFit = []
 	numberFit = []
 
-	for i, char in enumerate(chars):
+	for i, char in enumerate(cropped_char):
 		
-
+		"""
 		# Get rid of black pixels around the character
 		positions = np.nonzero(char)
 		del_lines_top = positions[0].min()
@@ -153,7 +143,7 @@ def segment_and_recognize(plate_image):
 		del_lines_left = positions[1].min()
 		del_lines_right = positions[1].max()
 		char = char[del_lines_top:del_lines_bottom, del_lines_left:del_lines_right]
-
+"""
 		# Calculate the aspect ratio
 		aspect_ratio = char.shape[1] / char.shape[0]
 
@@ -222,8 +212,8 @@ def segment_and_recognize(plate_image):
 
 	if(not UseCharGrouping):
 		plate = ""
-		for idx in range(len(chars)):
-			if(idx in hyphen_pos and idx != 0 and idx < 6):
+		for idx in range(len(cropped_char)):
+			if(idx in hyphen_positions and idx != 0 and idx < 6):
 				plate += "-"
 			if(letterFit[idx][1] < numberFit[idx][1]):
 				plate += str(letterFit[idx][0])
@@ -233,3 +223,73 @@ def segment_and_recognize(plate_image):
 
 	#print("product: " + plate)
 	return plate
+
+
+	""" hsv_plate = cv2.cvtColor(cropped, cv2.COLOR_BGR2HSV)
+
+	kernel_size = 5
+	blured = cv2.GaussianBlur(hsv_plate, (kernel_size, kernel_size), kernel_size / 6)
+	if showImages:
+		cv2.imshow("plate", plate_image)
+
+	# Define color range
+	colorMin = np.array([0, 120, 120]) #16, 130, 130])  # Lower HSV values for yellow
+	colorMax = np.array([50, 255, 255]) #25, 255, 255])  # Higher HSV values for yellow
+
+	# Segment only the selected color from the image and leave out all the rest (apply a mask)
+	mask = cv2.inRange(blured, colorMin, colorMax)
+	if showImages:
+		cv2.imshow("mask", mask)
+	filtered = blured.copy()
+	filtered[mask == 0] = [0, 0, 0]
+	filtered_resized = cv2.resize(filtered, (plate_image.shape[1], plate_image.shape[0]))
+	result = cv2.bitwise_and(plate_image, filtered_resized)
+
+
+	grey_mask = result[:, :, 2]
+	equalised = cv2.equalizeHist(grey_mask)
+	binarised = np.where(equalised > 0, 0, 255).astype(np.uint8)
+
+	structuring_element = np.array([[1, 1, 1],
+									[1, 1, 1],
+									[1, 1, 1]], np.uint8)
+
+	# Improve the mask using morphological dilation and erosion
+	eroded = cv2.erode(binarised, structuring_element)
+	dilated = cv2.dilate(eroded, structuring_element)
+	dilatedClosing = cv2.dilate(dilated, structuring_element)
+	img = cv2.erode(dilatedClosing, structuring_element)
+
+	indices_to_start = []
+	indices_to_end = []
+	started = False
+	for i in range(img.shape[1]):
+		section = img[:, i]
+		unique_colors = np.unique(section)
+		if 255 in unique_colors:
+			if not started:
+				indices_to_start.append(i)
+				started = True
+		else:
+			if started:
+				indices_to_end.append(i)
+				started = False
+
+	# Add the last section if it ends with white pixels
+	if started:
+		indices_to_end.append(img.shape[1])
+
+	chars = []
+	hyphen_pos = []
+	count = 0
+	for start, end in zip(indices_to_start, indices_to_end):
+		segment_mask = img[:, start:end]
+		if np.count_nonzero(segment_mask) > 100:
+			chars.append(segment_mask)
+			count += 1
+		elif np.count_nonzero(segment_mask) > 50:
+			hyphen_pos.append(count)
+	if showImages:
+		cv2.imshow("Binarised mask", img)
+
+	 """
