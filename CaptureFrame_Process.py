@@ -104,7 +104,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
             detections = Localization.plate_detection(frame)
 
             for idx, detection in enumerate(detections):
-                if(idx > len(prev_plates)):
+                if(idx >= len(prev_plates)):
                     prev_plates.append([])
                     prediction.append("")
                 if np.shape(detection)[0] > 0 and np.shape(detection)[1] > 0:
@@ -115,10 +115,10 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                     prev_plates[idx].append(plate)
                     prediction[idx] = majorityPlate(prev_plates[idx])
                     if(prediction[idx] == None):
-                        #print("Nothing from plates " + str(prev_plates))
                         prediction[idx] = "Nothing_"
                     # Scene change
-                    if(len(prev_plates[idx]) >= 20):  # needs at least 20 frames to conclude a scene, for shorter scenes change here
+                    # needs at least 20 frames to conclude a scene, for shorter scenes change here
+                    if(len(prev_plates[idx]) >= 20):  
                         hM0 = hummingDistance(plate, prediction[idx])
                         hM1 = hummingDistance(prev_plates[idx][len(prev_plates[idx]) - 2], prediction[idx])
                         hM2 = hummingDistance(prev_plates[idx][len(prev_plates[idx]) - 3], prediction[idx])
@@ -127,17 +127,10 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                         if(hM0 < percentile and hM1 < percentile and hM2 < percentile and finalPrediction != None):
                             a, b, c = prev_plates[idx][len(prev_plates[idx]) - 1], prev_plates[idx][len(prev_plates[idx]) - 2], prev_plates[idx][len(prev_plates[idx]) - 3]
                             prev_plates[idx] = [a, b, c]
+
                             seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
                             print(f'{finalPrediction},{frame_no},{seconds}')
                             output.write(f'{finalPrediction},{frame_no},{seconds}\n')
-
-                #if prev_plates is None or plate in prev_plates:
-                #    prev_plates = []
-                #    seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
-                #    print(f'{plate},{frame_no},{seconds}')
-                #    output.write(f'{plate},{frame_no},{seconds}\n')
-                #else:
-                #    prev_plates.append(plate)
 
             #cv2.waitKey(0)
             

@@ -72,40 +72,23 @@ def segment_and_recognize(plate_image):
 		x, y, width, height = cv2.boundingRect(contour)
 		ROI = closing[y:y + height, x:x + width]
 		ratio = height/width
-		#print(ROI.shape[1])
-		#print(ratio)
 		if ROI.shape[1] >= 7:
 			if 4 > ratio > 1.2 and ROI.shape[0] > 30:
 				cropped_char.append(ROI)
 				ROI_number += 1
-				#print("Classified as char")
+				# Classified as char
 			elif (0.9 > ratio > 0.3
 					and (not hyphen_positions or hyphen_positions[-1] + 2 < ROI_number)
 					and ROI.shape[0] < 13
 					and ROI_number != 0):
 				hyphen_positions.append(ROI_number)
 				ROI_number += 1
-				#print("Classified as hyphen")
-			#else:
-				#print("Noise")
-		#else:
-			#print("Noise")
 
 		if ROI_number >= 8:
 			break
 	if showImages:
 		for idx, char in enumerate(cropped_char):
 			cv2.imshow(f'Cropped character {idx}', char)
-
-	#for pos in hyphen_positions:
-		#print(f'Hyphen position: {pos}')
-
-	#print("\n")
-
-
-
-
-
 
 	letters = read('dataset/SameSizeLetters')
 	numbers = read('dataset/SameSizeNumbers')
@@ -168,6 +151,7 @@ def segment_and_recognize(plate_image):
 		if showImages:
 			cv2.imshow(f'Char {i}', char)
 
+		# find the best number fit for the character
 		minChar = ""
 		minDiff = 1000000
 		for idx, number in enumerate(numbers):
@@ -181,6 +165,7 @@ def segment_and_recognize(plate_image):
 					minChar = idx
 		numberFit.append((minChar, minDiff))
 
+		# find the best letter fit for the character
 		minChar = ""
 		minDiff = 1000000
 		for idx, letter in enumerate(letters):
