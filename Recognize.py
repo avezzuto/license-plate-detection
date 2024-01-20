@@ -55,6 +55,8 @@ def segment_and_recognize(plate_image, lenBool):
 		grey = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
 		thresh = cv2.adaptiveThreshold(grey, 255,
 										cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 5)
+	
+
 	else:
 		# Resize the licence to a wanted size
 		new_height = 70
@@ -148,15 +150,6 @@ def segment_and_recognize(plate_image, lenBool):
 
 	for i, char in enumerate(cropped_char):
 		
-		"""
-		# Get rid of black pixels around the character
-		positions = np.nonzero(char)
-		del_lines_top = positions[0].min()
-		del_lines_bottom = positions[0].max()
-		del_lines_left = positions[1].min()
-		del_lines_right = positions[1].max()
-		char = char[del_lines_top:del_lines_bottom, del_lines_left:del_lines_right]
-"""
 		# Calculate the aspect ratio
 		aspect_ratio = char.shape[1] / char.shape[0]
 
@@ -239,72 +232,3 @@ def segment_and_recognize(plate_image, lenBool):
 	#print("product: " + plate)
 	return plate
 
-
-	""" hsv_plate = cv2.cvtColor(cropped, cv2.COLOR_BGR2HSV)
-
-	kernel_size = 5
-	blured = cv2.GaussianBlur(hsv_plate, (kernel_size, kernel_size), kernel_size / 6)
-	if showImages:
-		cv2.imshow("plate", plate_image)
-
-	# Define color range
-	colorMin = np.array([0, 120, 120]) #16, 130, 130])  # Lower HSV values for yellow
-	colorMax = np.array([50, 255, 255]) #25, 255, 255])  # Higher HSV values for yellow
-
-	# Segment only the selected color from the image and leave out all the rest (apply a mask)
-	mask = cv2.inRange(blured, colorMin, colorMax)
-	if showImages:
-		cv2.imshow("mask", mask)
-	filtered = blured.copy()
-	filtered[mask == 0] = [0, 0, 0]
-	filtered_resized = cv2.resize(filtered, (plate_image.shape[1], plate_image.shape[0]))
-	result = cv2.bitwise_and(plate_image, filtered_resized)
-
-
-	grey_mask = result[:, :, 2]
-	equalised = cv2.equalizeHist(grey_mask)
-	binarised = np.where(equalised > 0, 0, 255).astype(np.uint8)
-
-	structuring_element = np.array([[1, 1, 1],
-									[1, 1, 1],
-									[1, 1, 1]], np.uint8)
-
-	# Improve the mask using morphological dilation and erosion
-	eroded = cv2.erode(binarised, structuring_element)
-	dilated = cv2.dilate(eroded, structuring_element)
-	dilatedClosing = cv2.dilate(dilated, structuring_element)
-	img = cv2.erode(dilatedClosing, structuring_element)
-
-	indices_to_start = []
-	indices_to_end = []
-	started = False
-	for i in range(img.shape[1]):
-		section = img[:, i]
-		unique_colors = np.unique(section)
-		if 255 in unique_colors:
-			if not started:
-				indices_to_start.append(i)
-				started = True
-		else:
-			if started:
-				indices_to_end.append(i)
-				started = False
-
-	# Add the last section if it ends with white pixels
-	if started:
-		indices_to_end.append(img.shape[1])
-
-	chars = []
-	hyphen_pos = []
-	count = 0
-	for start, end in zip(indices_to_start, indices_to_end):
-		segment_mask = img[:, start:end]
-		if np.count_nonzero(segment_mask) > 100:
-			chars.append(segment_mask)
-			count += 1
-		elif np.count_nonzero(segment_mask) > 50:
-			hyphen_pos.append(count)
-	if showImages:
-		cv2.imshow("Binarised mask", img)
-
-	 """

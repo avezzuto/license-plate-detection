@@ -89,7 +89,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     if not cap.isOpened():
         print("Error opening video stream or file")
 
-    frame_no = int(0 * cap.get(cv2.CAP_PROP_FPS))
+    frame_no = int(127 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
     prev_plates = [[]]
@@ -121,8 +121,10 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                 if plate != None and plate != "-":
                     prev_plates[idx].append(plate)
                     prediction[idx] = majorityPlate(prev_plates[idx])
+
                     if(prediction[idx] == None):
                         prediction[idx] = "Nothing_"
+
                     # Scene change
                     # needs at least 20 frames to conclude a scene, for shorter scenes change here
                     if(len(prev_plates[idx]) >= 20):  
@@ -135,16 +137,17 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                             a, b, c = prev_plates[idx][len(prev_plates[idx]) - 1], prev_plates[idx][len(prev_plates[idx]) - 2], prev_plates[idx][len(prev_plates[idx]) - 3]
                             prev_plates[idx] = [a, b, c]
 
-                            print(f'{finalPrediction},{time[0][0]},{time[0][1]}')
+                            if printToConsole:
+                                print(f'{finalPrediction},{time[0][0]},{time[0][1]}')
                             output.write(f'{finalPrediction},{time[0][0]},{time[0][1]}\n')
 
-            #cv2.waitKey(0)
+            cv2.waitKey(0)
             
             #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates[idx])
             #if accuracy is not None:
                 #cv2.waitKey(0)
 
-            frame_no += 1 #5
+            frame_no += 1
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
             # Press Q on keyboard to  exit

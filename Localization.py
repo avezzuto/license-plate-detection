@@ -111,43 +111,24 @@ def plate_detection(image):
     filtered = blur.copy()
     filtered[mask == 0] = [0, 0, 0]
 
-    structuring_element = np.array([[1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1]], np.uint8)
-
-    structuring_element_closing = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]], np.uint8)
+    kernelErode = np.ones((5,5), dtype=np.uint8)
+    kernelDilate = np.ones((12,12), dtype=np.uint8)
     # Improve the mask using morphological dilation and erosion
-    eroded = cv2.erode(filtered, structuring_element)
-    dilated = cv2.dilate(eroded, structuring_element_closing)
-    dilatedClosing = cv2.dilate(dilated, structuring_element_closing)
-    eroded = cv2.erode(dilatedClosing, structuring_element)
+    eroded = cv2.erode(filtered, kernelErode)
+    dilated = cv2.dilate(eroded, kernelDilate)
+    dilatedClosing = cv2.dilate(dilated, kernelDilate)
+    eroded = cv2.erode(dilatedClosing, kernelErode)
 
-    vertical_split_mask, vertical_split_image = split_license_plates(eroded, image, 'vertical')
+    h, s, v1 = cv2.split(eroded)
 
-    split_mask, split_image = [], []
-    for i in range(len(vertical_split_mask)):
-        msk, img = split_license_plates(vertical_split_mask[i], vertical_split_image[i], 'horizontal')
-        for j in range(len(msk)):
-            split_mask.append(msk[j])
-            split_image.append(img[j])
+    contours = cv2.findContours(v1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = contours[0] if len(contours) == 2 else contours[1]
+    contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
 
     cropped_plates = []
-    for singleMask, split_img in zip(split_mask, split_image):
-        cropped = crop_plate(singleMask, split_img)
-        cropped_plates.append(cropped)
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        cropped_plates.append(image[y:y + height, x:x + width])
 
     rotated_plates = Rotation.rotate(cropped_plates)
 
