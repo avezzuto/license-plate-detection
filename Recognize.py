@@ -5,12 +5,12 @@ from os.path import isfile, join
 
 
 def crop(plate):
-	center_x, center_y = plate.shape[1] / 2, plate.shape[0] / 2
-	width, height = plate.shape[1] * 0.93, plate.shape[0] * 0.8
-	left_x, right_x = center_x - width / 2, center_x + width / 2
-	top_y, bottom_y = center_y - height / 2, center_y + height / 2
-	img_cropped = plate[int(top_y):int(bottom_y), int(left_x):int(right_x)]
-	return img_cropped
+    center_x, center_y = plate.shape[1] / 2, plate.shape[0] / 2
+    width, height = plate.shape[1] * 0.93, plate.shape[0] * 0.8
+    left_x, right_x = center_x - width / 2, center_x + width / 2
+    top_y, bottom_y = center_y - height / 2, center_y + height / 2
+    img_cropped = plate[int(top_y):int(bottom_y), int(left_x):int(right_x)]
+    return img_cropped
 
 
 def read(path):
@@ -23,12 +23,12 @@ def read(path):
 
 def create_dutch_license_plate_mapping():
 	# Create a mapping of numbers to letters
-	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 15: "L", 16: "M", 17:"B", 18:"R", 19:"P"}
-	#mapping = {0: "B", 1: "D", 2: "F", 3: "G", 4: "H", 5: "J", 6: "K", 7: "L", 8: "M", 9: "N", 10: "P", 11: "R", 12: "S", 13: "T", 14: "V", 15: "X", 16: "Z"}
+	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 
+			15: "L", 16: "M", 17:"B", 18:"R", 19:"P"}
 	return mapping
 
 
-def segment_and_recognize(plate_image):
+def segment_and_recognize(plate_image, lenBool):
 	"""
 	In this file, you will define your own segment_and_recognize function.
 	To do:
@@ -45,47 +45,77 @@ def segment_and_recognize(plate_image):
 		You may need to define other functions.
 	"""
 	showImages = False
-	# Resize the licence to a wanted size
-	new_height = 70
-	ratio = new_height / plate_image.shape[0]
-	new_width = int(plate_image.shape[1] * ratio)
-	resized = cv2.resize(plate_image, (new_width, new_height))
+	catThree = False
 
-	cropped = crop(resized)
-		
-	grey = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-	blurred = cv2.GaussianBlur(grey, (5, 5), 0)
-	thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 8)
-	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-	opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
-	closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+	if(5 < plate_image.shape[0] < 30 and 5 < plate_image.shape[1] < 120 and lenBool):
+		catThree = True
+
+	if(catThree):
+		cropped = crop(plate_image)
+		grey = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+		thresh = cv2.adaptiveThreshold(grey, 255,
+										cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 5)
+	else:
+		# Resize the licence to a wanted size
+		new_height = 70
+		ratio = new_height / plate_image.shape[0]
+		new_width = int(plate_image.shape[1] * ratio)
+		resized = cv2.resize(plate_image, (new_width, new_height))
+
+		cropped = crop(resized)
+		grey = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+
+		blurred = cv2.GaussianBlur(grey, (5, 5), 0)
+		thresh = cv2.adaptiveThreshold(blurred, 255,
+										cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 8)
+
+		if 2000 < np.count_nonzero(thresh) < 3000:
+			blurred = cv2.GaussianBlur(grey, (3, 3), 0)
+			thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 19, 3)
+
+
+	after_morph = thresh
+	if not catThree:
+		kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+		opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+		closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+		after_morph = closing
+
+	else:
+		ratio = 70 / after_morph.shape[0]
+		width = int(after_morph.shape[1] * ratio)
+		resized = cv2.resize(after_morph, (width, 70))
+
+		after_morph = crop(resized)
+
 	if showImages:
-		cv2.imshow("After morphology", closing)
+		cv2.imshow("After morphology", after_morph)
 		
 	ROI_number = 0
 	cropped_char = list()
-	contours = cv2.findContours(closing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+	contours = cv2.findContours(after_morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 	contours = contours[0] if len(contours) == 2 else contours[1]
 	contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
 	hyphen_positions = list()
 	for contour in contours:
 		x, y, width, height = cv2.boundingRect(contour)
-		ROI = closing[y:y + height, x:x + width]
-		ratio = height/width
+		ROI = after_morph[y:y + height, x:x + width]
+		ratio = height / width
 		if ROI.shape[1] >= 7:
-			if 4 > ratio > 1.2 and ROI.shape[0] > 30:
+			if 4 > ratio > 1 and ROI.shape[0] > 30:
 				cropped_char.append(ROI)
 				ROI_number += 1
-				# Classified as char
+			# Classified as char
 			elif (0.9 > ratio > 0.3
-					and (not hyphen_positions or hyphen_positions[-1] + 2 < ROI_number)
-					and ROI.shape[0] < 13
-					and ROI_number != 0):
+                  and (not hyphen_positions or hyphen_positions[-1] + 2 < ROI_number)
+                  and ROI.shape[0] < 13
+                  and ROI_number != 0):
 				hyphen_positions.append(ROI_number)
 				ROI_number += 1
 
 		if ROI_number >= 8:
 			break
+
 	if showImages:
 		for idx, char in enumerate(cropped_char):
 			cv2.imshow(f'Cropped character {idx}', char)

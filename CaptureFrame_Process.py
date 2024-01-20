@@ -79,6 +79,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     Output: None
     """
     showImages = False
+    printToConsole = False
 
     cap = cv2.VideoCapture(file_path)
 
@@ -116,7 +117,7 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                 if np.shape(detection)[0] > 0 and np.shape(detection)[1] > 0:
                     if showImages:
                         cv2.imshow(f'Cropped plate {idx}', detection)
-                plate = Recognize.segment_and_recognize(detection)
+                plate = Recognize.segment_and_recognize(detection, len(detections) > 1)
                 if plate != None and plate != "-":
                     prev_plates[idx].append(plate)
                     prediction[idx] = majorityPlate(prev_plates[idx])

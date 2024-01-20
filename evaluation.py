@@ -1,7 +1,8 @@
+import cv2
 import pandas as pd
 import argparse
 import numpy as np
-import cv2
+
 import Recognize
 import Rotation
 
