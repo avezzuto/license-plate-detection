@@ -3,63 +3,6 @@ import numpy as np
 import Rotation
 
 
-def split_license_plates(mask, image, direction):
-    if direction == 'vertical':
-        axis = 1
-        threshold = 50
-        size = mask.shape[1]
-    else:
-        axis = 0
-        threshold = 20
-        size = mask.shape[0]
-
-    black_count = 0
-    previous_color = None
-    splits = []
-
-    for i in range(size):
-        if axis == 1:
-            section = mask[:, i]
-        else:
-            section = mask[i]
-        unique_colors = np.unique(section)
-        if len(unique_colors) == 1 and unique_colors[0] == 0:
-            black_count += 1
-            if black_count >= threshold and previous_color is not None:
-                splits.append(i)
-                black_count = 0
-                previous_color = None
-            continue
-
-        black_count = 0
-        previous_color = unique_colors[0]
-
-    mask_images = []
-    plate_images = []
-
-    if len(splits) > 0:
-        splits = [0] + splits + [size]
-        for i in range(len(splits) - 1):
-            start = splits[i]
-            end = splits[i + 1]
-            if axis == 0:
-                sub_mask = mask[start:end, :]
-                sub_plate = image[start:end, :, :]
-            else:
-                sub_mask = mask[:, start:end]
-                sub_plate = image[:, start:end, :]
-
-            unique_colors = np.unique(sub_mask)
-            if not (len(unique_colors) == 1 and unique_colors[0] == 0):
-                mask_images.append(sub_mask)
-                plate_images.append(sub_plate)
-    else:
-        mask_images.append(mask)
-        plate_images.append(image)
-
-    return mask_images, plate_images
-
-
 def crop_plate(mask, image):
     non_black_indices = np.argwhere(np.any(mask != mask[0, 0], axis=-1))
     if non_black_indices.size > 0:
@@ -111,43 +54,24 @@ def plate_detection(image):
     filtered = blur.copy()
     filtered[mask == 0] = [0, 0, 0]
 
-    structuring_element = np.array([[1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1],
-                                    [1, 1, 1, 1, 1]], np.uint8)
-
-    structuring_element_closing = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]], np.uint8)
+    kernelErode = np.ones((5, 5), dtype=np.uint8)
+    kernelDilate = np.ones((12, 12), dtype=np.uint8)
     # Improve the mask using morphological dilation and erosion
-    eroded = cv2.erode(filtered, structuring_element)
-    dilated = cv2.dilate(eroded, structuring_element_closing)
-    dilatedClosing = cv2.dilate(dilated, structuring_element_closing)
-    eroded = cv2.erode(dilatedClosing, structuring_element)
+    eroded = cv2.erode(filtered, kernelErode)
+    dilated = cv2.dilate(eroded, kernelDilate)
+    dilatedClosing = cv2.dilate(dilated, kernelDilate)
+    eroded = cv2.erode(dilatedClosing, kernelErode)
 
-    vertical_split_mask, vertical_split_image = split_license_plates(eroded, image, 'vertical')
+    h, s, v1 = cv2.split(eroded)
 
-    split_mask, split_image = [], []
-    for i in range(len(vertical_split_mask)):
-        msk, img = split_license_plates(vertical_split_mask[i], vertical_split_image[i], 'horizontal')
-        for j in range(len(msk)):
-            split_mask.append(msk[j])
-            split_image.append(img[j])
+    contours = cv2.findContours(v1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = contours[0] if len(contours) == 2 else contours[1]
+    contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
 
     cropped_plates = []
-    for singleMask, split_img in zip(split_mask, split_image):
-        cropped = crop_plate(singleMask, split_img)
-        cropped_plates.append(cropped)
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        cropped_plates.append(image[y:y + height, x:x + width])
 
     rotated_plates = Rotation.rotate(cropped_plates)
 

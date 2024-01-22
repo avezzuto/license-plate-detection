@@ -5,31 +5,41 @@ from os.path import isfile, join
 
 
 def crop(plate):
-	center_x, center_y = plate.shape[1] / 2, plate.shape[0] / 2
-	width, height = plate.shape[1] * 0.93, plate.shape[0] * 0.8
-	left_x, right_x = center_x - width / 2, center_x + width / 2
-	top_y, bottom_y = center_y - height / 2, center_y + height / 2
-	img_cropped = plate[int(top_y):int(bottom_y), int(left_x):int(right_x)]
-	return img_cropped
+    center_x, center_y = plate.shape[1] / 2, plate.shape[0] / 2
+    width, height = plate.shape[1] * 0.93, plate.shape[0] * 0.8
+    left_x, right_x = center_x - width / 2, center_x + width / 2
+    top_y, bottom_y = center_y - height / 2, center_y + height / 2
+    img_cropped = plate[int(top_y):int(bottom_y), int(left_x):int(right_x)]
+    return img_cropped
+
+
+def crop_cat_three(plate):
+    center_x, center_y = plate.shape[1] / 2, plate.shape[0] / 2
+    width, height = plate.shape[1] * 0.95, plate.shape[0] * 0.85
+    left_x, right_x = center_x - width / 2, center_x + width / 2
+    top_y, bottom_y = center_y - height / 2, center_y + height / 2
+    img_cropped = plate[int(top_y):int(bottom_y), int(left_x):int(right_x)]
+    return img_cropped
 
 
 def read(path):
-	to_read = [join(path, f) for f in listdir(path) if isfile(join(path, f))]
-	chars = []
-	for char_path in to_read:
-		chars.append(cv2.imread(char_path))
-	return chars
+    to_read = [join(path, f) for f in listdir(path) if isfile(join(path, f))]
+    chars = []
+    for char_path in to_read:
+        chars.append(cv2.imread(char_path))
+    return chars
 
 
 def create_dutch_license_plate_mapping():
-	# Create a mapping of numbers to letters
-	mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G", 12: "H", 13: "J", 14: "K", 15: "L", 16: "M", 17:"B"}
-	#mapping = {0: "B", 1: "D", 2: "F", 3: "G", 4: "H", 5: "J", 6: "K", 7: "L", 8: "M", 9: "N", 10: "P", 11: "R", 12: "S", 13: "T", 14: "V", 15: "X", 16: "Z"}
-	return mapping
+    # Create a mapping of numbers to letters
+    mapping = {0: "B", 1: "N", 2: "P", 3: "R", 4: "S", 5: "T", 6: "V", 7: "X", 8: "Z", 9: "D", 10: "F", 11: "G",
+               12: "H", 13: "J", 14: "K",
+               15: "L", 16: "M", 17: "B", 18: "R", 19: "P"}
+    return mapping
 
 
-def segment_and_recognize(plate_image):
-	"""
+def segment_and_recognize(plate_image, lenBool):
+    """
 	In this file, you will define your own segment_and_recognize function.
 	To do:
 		1. Segment the plates character by character
@@ -44,192 +54,200 @@ def segment_and_recognize(plate_image):
 	Hints:
 		You may need to define other functions.
 	"""
-	showImages = False
+    showImages = False
+    catThree = False
 
-	# Resize the licence to a wanted size
-	new_height = 70
-	ratio = new_height / plate_image.shape[0]
-	new_width = int(plate_image.shape[1] * ratio)
-	resized = cv2.resize(plate_image, (new_width, new_height))
+    if 5 < plate_image.shape[0] < 30 and 5 < plate_image.shape[1] < 120 and lenBool:
+        catThree = True
 
-	cropped = crop(resized)
+    if catThree:
+        cropped = crop(plate_image)
+        grey = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.adaptiveThreshold(grey, 255,
+                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 5)
+    else:
+        # Resize the licence to a wanted size
+        new_height = 70
+        ratio = new_height / plate_image.shape[0]
+        new_width = int(plate_image.shape[1] * ratio)
+        resized = cv2.resize(plate_image, (new_width, new_height))
 
-	hsv_plate = cv2.cvtColor(cropped, cv2.COLOR_BGR2HSV)
+        cropped = crop(resized)
+        grey = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
 
-	kernel_size = 5
-	blur = cv2.GaussianBlur(hsv_plate, (kernel_size, kernel_size), kernel_size / 6)
-	if showImages:
-		cv2.imshow("plate", plate_image)
+        blurred = cv2.GaussianBlur(grey, (5, 5), 0)
+        thresh = cv2.adaptiveThreshold(blurred, 255,
+                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 8)
 
-	# Define color range
-	colorMin = np.array([0, 120, 120]) #16, 130, 130])  # Lower HSV values for yellow
-	colorMax = np.array([50, 255, 255]) #25, 255, 255])  # Higher HSV values for yellow
+        if 2000 < np.count_nonzero(thresh) < 3000:
+            blurred = cv2.GaussianBlur(grey, (3, 3), 0)
+            thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 19, 3)
 
-	# Segment only the selected color from the image and leave out all the rest (apply a mask)
-	mask = cv2.inRange(blur, colorMin, colorMax)
-	if showImages:
-		cv2.imshow("mask", mask)
-	filtered = blur.copy()
-	filtered[mask == 0] = [0, 0, 0]
-	filtered_resized = cv2.resize(filtered, (plate_image.shape[1], plate_image.shape[0]))
-	result = cv2.bitwise_and(plate_image, filtered_resized)
+    after_morph = thresh
+    if not catThree:
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+        closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+        after_morph = closing
+    else:
+        ratio = 40 / after_morph.shape[0]
+        width = int(after_morph.shape[1] * ratio)
+        resized = cv2.resize(after_morph, (width, 40))
 
-	
-	grey_mask = result[:, :, 2]
-	equalised = cv2.equalizeHist(grey_mask)
-	binarised = np.where(equalised > 0, 0, 255).astype(np.uint8)
+        after_morph = crop_cat_three(resized)
 
-	structuring_element = np.array([[1, 1, 1],
-									[1, 1, 1],
-									[1, 1, 1]], np.uint8)
+    if showImages:
+        cv2.imshow("After morphology", after_morph)
 
-	# Improve the mask using morphological dilation and erosion
-	eroded = cv2.erode(binarised, structuring_element)
-	dilated = cv2.dilate(eroded, structuring_element)
-	dilatedClosing = cv2.dilate(dilated, structuring_element)
-	img = cv2.erode(dilatedClosing, structuring_element)
+    ROI_number = 0
+    cropped_char = list()
+    contours = cv2.findContours(after_morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = contours[0] if len(contours) == 2 else contours[1]
+    contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
+    hyphen_positions = list()
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        ROI = after_morph[y:y + height, x:x + width]
+        ratio = height / width
+        if catThree:
+            if showImages:
+                cv2.imshow(f"Contour {i}", ROI)
+                print(f"Contour {i} has shape {ROI.shape} and ratio {ratio}")
+            if ROI.shape[1] >= 3:
+                if 4 > ratio > 1 and ROI.shape[0] > 20:
+                    cropped_char.append(ROI)
+                    ROI_number += 1
+                elif (ratio > 0.3
+                      and (not hyphen_positions or hyphen_positions[-1] + 2 < ROI_number)
+                      and ROI.shape[0] < 13
+                      and ROI_number != 0):
+                    if showImages:
+                        print(f"Hyphen at pos {ROI_number}")
+                    hyphen_positions.append(ROI_number)
+                    ROI_number += 1
+        else:
+            if ROI.shape[1] >= 7:
+                if 4 > ratio > 1 and ROI.shape[0] > 30:
+                    cropped_char.append(ROI)
+                    ROI_number += 1
+                # Classified as char
+                elif (0.9 > ratio > 0.3
+                      and (not hyphen_positions or hyphen_positions[-1] + 2 < ROI_number)
+                      and ROI.shape[0] < 13
+                      and ROI_number != 0):
+                    hyphen_positions.append(ROI_number)
+                    ROI_number += 1
+        if ROI_number >= 8:
+            break
 
-	indices_to_start = []
-	indices_to_end = []
-	started = False
-	for i in range(img.shape[1]):
-		section = img[:, i]
-		unique_colors = np.unique(section)
-		if 255 in unique_colors:
-			if not started:
-				indices_to_start.append(i)
-				started = True
-		else:
-			if started:
-				indices_to_end.append(i)
-				started = False
+    if showImages:
+        for idx, char in enumerate(cropped_char):
+            cv2.imshow(f'Cropped character {idx}', char)
 
-	# Add the last section if it ends with white pixels
-	if started:
-		indices_to_end.append(img.shape[1])
+    letters = read('dataset/SameSizeLetters')
+    numbers = read('dataset/SameSizeNumbers')
 
-	chars = []
-	hyphen_pos = []
-	count = 0
-	for start, end in zip(indices_to_start, indices_to_end):
-		segment_mask = img[:, start:end]
-		if np.count_nonzero(segment_mask) > 100:
-			chars.append(segment_mask)
-			count += 1
-		elif np.count_nonzero(segment_mask) > 50:
-			hyphen_pos.append(count)
-	if showImages:
-		cv2.imshow("Binarised mask", img)
+    mapping = create_dutch_license_plate_mapping()
+    plate = ""
 
-	letters = read('dataset/SameSizeLetters')
-	numbers = read('dataset/SameSizeNumbers')
+    UseCharGrouping = True
 
-	mapping = create_dutch_license_plate_mapping()
-	plate = ""
+    # Each of 3 sections of a dutch licence plate consist on only letters or only numbers
+    groups = []
+    pre_pos = 0
+    if len(hyphen_positions) >= 2 and hyphen_positions[0] > 0 and hyphen_positions[1] > 0:
+        hyphen_positions[1] -= 1
+    for pos in hyphen_positions:
+        if pos == 0:
+            continue
+        if pos > len(cropped_char):
+            continue
+        group = [pre_pos, pos]
+        groups.append(group)
+        pre_pos = pos
+    groups.append([pre_pos, len(cropped_char)])
 
-	UseCharGrouping = True
+    letterFit = []
+    numberFit = []
 
-	# Each of 3 sections of a dutch licence plate consist on only letters or only numbers
-	groups = []
-	pre_pos = 0
-	for pos in hyphen_pos:
-		if(pos == 0):
-			continue
-		group = [pre_pos, pos]
-		groups.append(group)
-		pre_pos = pos
-	groups.append([pre_pos, len(chars)])
+    for i, char in enumerate(cropped_char):
 
-	letterFit = []
-	numberFit = []
+        # Calculate the aspect ratio
+        aspect_ratio = char.shape[1] / char.shape[0]
 
-	for i, char in enumerate(chars):
-		
+        # Calculate the new width based on the desired height and aspect ratio
+        new_height = numbers[0].shape[0]
+        new_width = int(new_height * aspect_ratio)
 
-		# Get rid of black pixels around the character
-		positions = np.nonzero(char)
-		del_lines_top = positions[0].min()
-		del_lines_bottom = positions[0].max()
-		del_lines_left = positions[1].min()
-		del_lines_right = positions[1].max()
-		char = char[del_lines_top:del_lines_bottom, del_lines_left:del_lines_right]
+        # Resize the image using the calculated width and height
+        char = cv2.resize(char, (new_width, new_height))
 
-		# Calculate the aspect ratio
-		aspect_ratio = char.shape[1] / char.shape[0]
+        # Calculate the difference in width
+        width_difference = numbers[0].shape[1] - new_width
 
-		# Calculate the new width based on the desired height and aspect ratio
-		new_height = numbers[0].shape[0]
-		new_width = int(new_height * aspect_ratio)
+        if width_difference > 0:
+            # Create a new image with the new width and original height
+            black_padding = np.zeros((new_height, width_difference), dtype=np.uint8)
+            black_padding[:] = 0  # Set the color to black
 
-		# Resize the image using the calculated width and height
-		char = cv2.resize(char, (new_width, new_height))
+            # Concatenate the original image and black padding horizontally
+            char = np.concatenate((char, black_padding), axis=1)
 
-		# Calculate the difference in width
-		width_difference = numbers[0].shape[1] - new_width
+        if showImages:
+            cv2.imshow(f'Char {i}', char)
 
-		if width_difference > 0:
-			# Create a new image with the new width and original height
-			black_padding = np.zeros((new_height, width_difference), dtype=np.uint8)
-			black_padding[:] = 0  # Set the color to black
+        # find the best number fit for the character
+        minChar = ""
+        minDiff = 1000000
+        for idx, number in enumerate(numbers):
+            number = number[:, :, 0]
+            if char.shape == number.shape:
+                xor = cv2.bitwise_xor(char, number)
+                diff = np.count_nonzero(xor)
+                # cv2.imshow(f'Difference with number {idx}', xor)
+                if diff < minDiff:
+                    minDiff = diff
+                    minChar = idx
+        numberFit.append((minChar, minDiff))
 
-			# Concatenate the original image and black padding horizontally
-			char = np.concatenate((char, black_padding), axis=1)
+        # find the best letter fit for the character
+        minChar = ""
+        minDiff = 1000000
+        for idx, letter in enumerate(letters):
+            letter = letter[:, :, 0]
+            if char.shape == letter.shape:
+                xor = cv2.bitwise_xor(char, letter)
+                diff = np.count_nonzero(xor)
+                # cv2.imshow(f'Difference with letter {mapping[index]}', xor)
+                if diff < minDiff:
+                    minDiff = diff
+                    minChar = mapping[idx]
+        letterFit.append((minChar, minDiff))
 
-		if showImages:
-			cv2.imshow(f'Char {i}', char)
+    # Decisions made based on the group of letters/numbers
+    for idx, group in enumerate(groups):
+        sumNumDif = 0
+        sumLetDif = 0
+        for i in range(group[0], group[1]):
+            sumNumDif += numberFit[i][1]
+            sumLetDif += letterFit[i][1]
+        if sumNumDif <= sumLetDif:
+            for i in range(group[0], group[1]):
+                plate += str(numberFit[i][0])
+        else:
+            for i in range(group[0], group[1]):
+                plate += str(letterFit[i][0])
+        if (idx < 2):
+            plate += "-"
 
-		minChar = ""
-		minDiff = 1000000
-		for idx, number in enumerate(numbers):
-			number = number[:, :, 0]
-			if char.shape == number.shape:
-				xor = cv2.bitwise_xor(char, number)
-				diff = np.count_nonzero(xor)
-				#cv2.imshow(f'Difference with number {idx}', xor)
-				if diff < minDiff:
-					minDiff = diff
-					minChar = idx
-		numberFit.append((minChar, minDiff))
+    if not UseCharGrouping:
+        plate = ""
+        for idx in range(len(cropped_char)):
+            if idx in hyphen_positions and idx != 0 and idx < 6:
+                plate += "-"
+            if letterFit[idx][1] < numberFit[idx][1]:
+                plate += str(letterFit[idx][0])
+            else:
+                plate += str(numberFit[idx][0])
 
-		minChar = ""
-		minDiff = 1000000
-		for idx, letter in enumerate(letters):
-			letter = letter[:, :, 0]
-			if char.shape == letter.shape:
-				xor = cv2.bitwise_xor(char, letter)
-				diff = np.count_nonzero(xor)
-				#cv2.imshow(f'Difference with letter {mapping[index]}', xor)
-				if diff < minDiff:
-					minDiff = diff
-					minChar = mapping[idx]
-		letterFit.append((minChar, minDiff))
-
-	# Decisions made based on the group of letters/numbers
-	for idx, group in enumerate(groups):
-		sumNumDif = 0
-		sumLetDif = 0
-		for i in range(group[0], group[1]):
-			sumNumDif += numberFit[i][1]
-			sumLetDif += letterFit[i][1]
-		if(sumNumDif <= sumLetDif):
-			for i in range(group[0], group[1]):
-				plate += str(numberFit[i][0])
-		else:
-			for i in range(group[0], group[1]):
-				plate += str(letterFit[i][0])
-		if(idx < 2):
-			plate += "-"
-
-	if(not UseCharGrouping):
-		plate = ""
-		for idx in range(len(chars)):
-			if(idx in hyphen_pos and idx != 0 and idx < 6):
-				plate += "-"
-			if(letterFit[idx][1] < numberFit[idx][1]):
-				plate += str(letterFit[idx][0])
-			else:
-				plate += str(numberFit[idx][0])
-
-
-	#print("product: " + plate)
-	return plate
+    return plate
