@@ -89,12 +89,14 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
     if not cap.isOpened():
         print("Error opening video stream or file")
 
-    frame_no = int(127 * cap.get(cv2.CAP_PROP_FPS))
+    frame_no = int(0 * cap.get(cv2.CAP_PROP_FPS))
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
     prev_plates = [[]]
     prediction = [""]
-    time = [()]
+    current_second = 0.0
+    current_frame = 0
+    current_plate = ""
 
     while cap.isOpened():
         # Capture frame-by-frame
@@ -105,10 +107,6 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
 
             detections = Localization.plate_detection(frame)
 
-            seconds = frame_no/cap.get(cv2.CAP_PROP_FPS)
-            time.append((frame_no, seconds))
-            if(len(time) > 5):
-                time.pop(0)
 
             for idx, detection in enumerate(detections):
                 if(idx >= len(prev_plates)):
@@ -124,6 +122,10 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
 
                     if(prediction[idx] == None):
                         prediction[idx] = "Nothing_"
+                    if(prediction[idx] == plate and current_plate != plate):
+                        current_frame = frame_no
+                        current_second = frame_no/cap.get(cv2.CAP_PROP_FPS)
+                        current_plate = plate
 
                     # Scene change
                     # needs at least 20 frames to conclude a scene, for shorter scenes change here
@@ -138,10 +140,10 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                             prev_plates[idx] = [a, b, c]
 
                             if printToConsole:
-                                print(f'{finalPrediction},{time[0][0]},{time[0][1]}')
-                            output.write(f'{finalPrediction},{time[0][0]},{time[0][1]}\n')
+                                print(f'{finalPrediction},{current_frame},{current_second}')
+                            output.write(f'{finalPrediction},{current_frame},{current_second}\n')
 
-            cv2.waitKey(0)
+            #cv2.waitKey(0)
             
             #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates[idx])
             #if accuracy is not None:
