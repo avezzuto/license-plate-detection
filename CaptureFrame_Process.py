@@ -2,14 +2,15 @@ import cv2
 import numpy as np
 import Localization
 import Recognize
-import evaluation
+import evalFunc
 
 
-def hummingDistance(x, y):
+def hummingDistance(string1, string2):
+    # returns how similar two strings in percentage
 	same = 0
-	shorter = min(len(x), len(y))
+	shorter = min(len(string1), len(string2))
 	for i in range(shorter):
-		if(x[i] == y[i]):
+		if(string1[i] == string2[i]):
 			same += 1
 	return same / shorter * 100
 	
@@ -106,7 +107,6 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                 cv2.imshow('Original frame', frame)
 
             detections = Localization.plate_detection(frame)
-
 
             for idx, detection in enumerate(detections):
                 if(idx >= len(prev_plates)):
