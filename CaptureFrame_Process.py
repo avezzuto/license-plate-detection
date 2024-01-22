@@ -143,18 +143,13 @@ def CaptureFrame_Process(file_path, sample_frequency, save_path):
                                 print(f'{finalPrediction},{current_frame},{current_second}')
                             output.write(f'{finalPrediction},{current_frame},{current_second}\n')
 
-            #cv2.waitKey(0)
-            
-            #accuracy = evaluation.evalRecognition(frame, frame_no, prev_plates[idx])
-            #if accuracy is not None:
-                #cv2.waitKey(0)
-
             frame_no += 1
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
             # Press Q on keyboard to  exit
-            if cv2.waitKey(25) & 0xFF == ord('q'):
-                break
+            if showImages:
+                if cv2.waitKey(25) & 0xFF == ord('q'):
+                    break
 
         # Break the loop
         else:

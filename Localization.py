@@ -3,63 +3,6 @@ import numpy as np
 import Rotation
 
 
-def split_license_plates(mask, image, direction):
-    if direction == 'vertical':
-        axis = 1
-        threshold = 50
-        size = mask.shape[1]
-    else:
-        axis = 0
-        threshold = 20
-        size = mask.shape[0]
-
-    black_count = 0
-    previous_color = None
-    splits = []
-
-    for i in range(size):
-        if axis == 1:
-            section = mask[:, i]
-        else:
-            section = mask[i]
-        unique_colors = np.unique(section)
-        if len(unique_colors) == 1 and unique_colors[0] == 0:
-            black_count += 1
-            if black_count >= threshold and previous_color is not None:
-                splits.append(i)
-                black_count = 0
-                previous_color = None
-            continue
-
-        black_count = 0
-        previous_color = unique_colors[0]
-
-    mask_images = []
-    plate_images = []
-
-    if len(splits) > 0:
-        splits = [0] + splits + [size]
-        for i in range(len(splits) - 1):
-            start = splits[i]
-            end = splits[i + 1]
-            if axis == 0:
-                sub_mask = mask[start:end, :]
-                sub_plate = image[start:end, :, :]
-            else:
-                sub_mask = mask[:, start:end]
-                sub_plate = image[:, start:end, :]
-
-            unique_colors = np.unique(sub_mask)
-            if not (len(unique_colors) == 1 and unique_colors[0] == 0):
-                mask_images.append(sub_mask)
-                plate_images.append(sub_plate)
-    else:
-        mask_images.append(mask)
-        plate_images.append(image)
-
-    return mask_images, plate_images
-
-
 def crop_plate(mask, image):
     non_black_indices = np.argwhere(np.any(mask != mask[0, 0], axis=-1))
     if non_black_indices.size > 0:
@@ -111,8 +54,8 @@ def plate_detection(image):
     filtered = blur.copy()
     filtered[mask == 0] = [0, 0, 0]
 
-    kernelErode = np.ones((5,5), dtype=np.uint8)
-    kernelDilate = np.ones((12,12), dtype=np.uint8)
+    kernelErode = np.ones((5, 5), dtype=np.uint8)
+    kernelDilate = np.ones((12, 12), dtype=np.uint8)
     # Improve the mask using morphological dilation and erosion
     eroded = cv2.erode(filtered, kernelErode)
     dilated = cv2.dilate(eroded, kernelDilate)
